@@ -1,0 +1,38 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <TargetFramework>net9.0</TargetFramework>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <Nullable>enable</Nullable>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <ProjectReference Include="..\Bot.Infrastructure\Bot.Infrastructure.csproj"/>
+        <ProjectReference Include="..\Bot.Shared\Bot.Shared.csproj"/>
+    </ItemGroup>
+
+    <ItemGroup>
+        <PackageReference Include="Azure.AI.FormRecognizer" Version="4.1.0"/>
+        <PackageReference Include="Azure.AI.OpenAI" Version="2.1.0"/>
+        <PackageReference Include="Azure.AI.TextAnalytics" Version="5.3.0"/>
+        <PackageReference Include="Azure.Identity" Version="1.13.2"/>
+        <PackageReference Include="BCrypt.Net" Version="0.1.0"/>
+        <PackageReference Include="Cronos" Version="0.10.0"/>
+        <PackageReference Include="MassTransit" Version="8.4.0"/>
+        <PackageReference Include="MassTransit.AzureServiceBus" Version="5.5.6"/>
+        <PackageReference Include="MassTransit.EntityFrameworkCore" Version="8.4.0"/>
+        <PackageReference Include="MassTransit.Extensions.DependencyInjection" Version="7.3.1"/>
+        <PackageReference Include="Microsoft.AspNetCore.Identity" Version="2.3.1"/>
+        <PackageReference Include="Microsoft.CognitiveServices.Speech" Version="1.43.0"/>
+        <PackageReference Include="Microsoft.Extensions.Http" Version="9.0.4"/>
+        <PackageReference Include="NCrontab" Version="3.3.3" />
+        <PackageReference Include="Polly" Version="8.5.2" />
+        <PackageReference Include="Scriban" Version="6.2.1"/>
+        <PackageReference Include="Twilio" Version="7.11.0"/>
+    </ItemGroup>
+
+    <ItemGroup>
+      <Folder Include="Extensions\" />
+    </ItemGroup>
+
+</Project>
