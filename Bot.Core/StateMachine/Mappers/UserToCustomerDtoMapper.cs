@@ -10,11 +10,11 @@ public static class UserToCustomerDtoMapper
         return new
         {
             first_name = nameParts[0],
-            last_name  = nameParts.Length > 1 ? nameParts[1] : "NA",
-            phone      = user.PhoneNumber,
-            type       = "individual",
-            email      = $"{user.Id}@bot.fake",
-            bvn        = "[[DECRYPTED_BVN]]" // placeholder, decrypt before passing
+            last_name = nameParts.Length > 1 ? nameParts[1] : "NA",
+            phone = user.PhoneNumber,
+            type = "individual",
+            email = $"{user.Id}@bot.fake",
+            bvn = "[[DECRYPTED_BVN]]" // placeholder, decrypt before passing
         };
     }
 
@@ -22,11 +22,11 @@ public static class UserToCustomerDtoMapper
     {
         return new
         {
-            name       = user.FullName,
-            mobile_no  = user.PhoneNumber.StartsWith("+234")
+            name = user.FullName,
+            mobile_no = user.PhoneNumber.StartsWith("+234")
                 ? user.PhoneNumber.Replace("+", "")
                 : "234" + user.PhoneNumber,
-            bvn        = "[[ENCRYPTED_BVN]]"
+            bvn = "[[ENCRYPTED_BVN]]"
         };
     }
 }

@@ -9,7 +9,10 @@ public class RecurringCmdConsumer : IConsumer<RecurringCmd>
 {
     private readonly ApplicationDbContext _db;
 
-    public RecurringCmdConsumer(ApplicationDbContext db) => _db = db;
+    public RecurringCmdConsumer(ApplicationDbContext db)
+    {
+        _db = db;
+    }
 
     public async Task Consume(ConsumeContext<RecurringCmd> ctx)
     {

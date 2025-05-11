@@ -19,5 +19,5 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
     public DbSet<TransactionMemo> TransactionMemos { get; set; }
     public DbSet<Nudge> Nudges { get; set; }
     public DbSet<LinkedBankAccount> LinkedBankAccounts { get; set; }
-    public DbSet<DirectDebitMandate>  DirectDebitMandates { get; set; }
+    public DbSet<DirectDebitMandate> DirectDebitMandates { get; set; }
 }

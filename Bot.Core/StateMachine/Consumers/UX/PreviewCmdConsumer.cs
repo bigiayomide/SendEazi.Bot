@@ -4,7 +4,8 @@ using MassTransit;
 
 namespace Bot.Core.StateMachine.Consumers.UX;
 
-public class PreviewCmdConsumer(IWhatsAppService wa, ApplicationDbContext db, IUserService users) : IConsumer<PreviewCmd>
+public class PreviewCmdConsumer(IWhatsAppService wa, ApplicationDbContext db, IUserService users)
+    : IConsumer<PreviewCmd>
 {
     public async Task Consume(ConsumeContext<PreviewCmd> ctx)
     {

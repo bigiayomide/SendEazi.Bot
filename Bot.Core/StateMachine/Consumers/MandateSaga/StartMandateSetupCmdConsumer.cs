@@ -1,6 +1,9 @@
 using Bot.Core.Providers;
 using Bot.Core.Services;
+using Bot.Infrastructure.Data;
+using Bot.Shared.Models;
 using MassTransit;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 
 namespace Bot.Core.StateMachine.Consumers.MandateSaga;
@@ -8,6 +11,8 @@ namespace Bot.Core.StateMachine.Consumers.MandateSaga;
 public class StartMandateSetupCmdConsumer(
     IUserService users,
     IBankProviderFactory factory,
+    IEncryptionService encryption,
+    ApplicationDbContext db,
     ILogger<StartMandateSetupCmdConsumer> log)
     : IConsumer<StartMandateSetupCmd>
 {
@@ -26,9 +31,42 @@ public class StartMandateSetupCmdConsumer(
         var mandateId = await provider.CreateMandateAsync(
             user,
             customerId,
-            maxAmount: 50000, // adjust as needed
-            mandateReference: $"mandate:{user.Id}");
+            ctx.Message.MaxAmount,
+            $"mandate:{user.Id}");
 
-        log.LogInformation("Mandate started: {MandateId} for user {UserId}", mandateId, user.Id);
+        // Retrieve account details from Mono
+        var accountDetails = await provider.GetAccountDetailsAsync(mandateId);
+
+        var encryptedAccountNumber = encryption.Encrypt(accountDetails.AccountNumber);
+        var accountHash = encryption.Sha256(accountDetails.AccountNumber);
+        var bankCode = accountDetails.BankCode;
+
+        var defaultAlreadySet = await db.LinkedBankAccounts
+            .AnyAsync(x => x.UserId == user.Id && x.IsDefault);
+
+        var alreadyLinked = await db.LinkedBankAccounts.AnyAsync(x =>
+            x.UserId == user.Id &&
+            x.AccountHash == accountHash &&
+            x.BankCode == bankCode);
+
+        if (!alreadyLinked)
+        {
+            db.LinkedBankAccounts.Add(new LinkedBankAccount
+            {
+                Id = Guid.NewGuid(),
+                UserId = user.Id,
+                Provider = "Mono",
+                AccountName = accountDetails.AccountName,
+                AccountNumberEnc = encryptedAccountNumber,
+                AccountHash = accountHash,
+                BankCode = bankCode,
+                ProviderCustomerId = customerId,
+                IsDefault = !defaultAlreadySet
+            });
+
+            await db.SaveChangesAsync();
+        }
+
+        log.LogInformation("Mandate created and account linked for user {UserId}", user.Id);
     }
 }

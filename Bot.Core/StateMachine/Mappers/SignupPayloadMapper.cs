@@ -8,9 +8,9 @@ public static class SignupPayloadMapper
     public static SignupPayload FromSaga(BotState state)
     {
         return new SignupPayload(
-            FullName: state.TempName!,
-            Phone:    state.PhoneNumber!,
-            NIN:      state.TempNIN!,
-            BVN:      state.TempBVN!);
+            state.TempName!,
+            state.PhoneNumber!,
+            state.TempNIN!,
+            state.TempBVN!);
     }
 }

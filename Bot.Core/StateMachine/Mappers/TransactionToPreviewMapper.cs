@@ -9,9 +9,9 @@ public static class TransactionToPreviewMapper
         return new
         {
             Amount = $"{tx.Amount:N2} NGN",
-            Date   = tx.CreatedAt.ToLocalTime().ToString("dd MMM, HH:mm"),
+            Date = tx.CreatedAt.ToLocalTime().ToString("dd MMM, HH:mm"),
             Status = tx.Status.ToString(),
-            Ref    = tx.Reference,
+            Ref = tx.Reference,
             Summary = $"You sent {tx.Amount:N2} to {tx.RecipientName ?? "recipient"}"
         };
     }

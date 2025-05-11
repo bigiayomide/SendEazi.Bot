@@ -1,11 +1,13 @@
+// File: Bot.Host.BackgroundJobs/BudgetAlertScheduler.cs
+
 using Quartz;
 using Quartz.Spi;
 
 namespace Bot.Host.BackgroundJobs;
 
-public class FeeSweepScheduler(
+public class BudgetAlertScheduler(
     IServiceProvider sp,
-    ILogger<FeeSweepScheduler> logger)
+    ILogger<BudgetAlertScheduler> logger)
     : IHostedService
 {
     private IScheduler _scheduler = null!;
@@ -16,19 +18,19 @@ public class FeeSweepScheduler(
         _scheduler = await factory.GetScheduler(cancellationToken);
         _scheduler.JobFactory = sp.GetRequiredService<IJobFactory>();
 
-        var job = JobBuilder.Create<FeeSweepJob>()
-            .WithIdentity("FeeSweepJob", "Billing")
+        var job = JobBuilder.Create<BudgetAlertJob>()
+            .WithIdentity("BudgetAlertJob", "Goals")
             .Build();
 
         var trigger = TriggerBuilder.Create()
-            .WithIdentity("FeeSweepTrigger", "Billing")
-            .WithCronSchedule("0 0 0 * * ?") // daily at midnight UTC
+            .WithIdentity("BudgetAlertTrigger", "Goals")
+            .WithCronSchedule("0 0 * * * ?") // every hour
             .Build();
 
         await _scheduler.ScheduleJob(job, trigger, cancellationToken);
         await _scheduler.Start(cancellationToken);
 
-        logger.LogInformation("💸 FeeSweepJob scheduled (daily at midnight)");
+        logger.LogInformation("📊 BudgetAlertJob scheduled (every hour)");
     }
 
     public async Task StopAsync(CancellationToken cancellationToken)
@@ -36,7 +38,7 @@ public class FeeSweepScheduler(
         if (_scheduler != null)
         {
             await _scheduler.Shutdown(cancellationToken);
-            logger.LogInformation("⏹️ FeeSweepScheduler stopped");
+            logger.LogInformation("⏹️ BudgetAlertScheduler stopped");
         }
     }
 }

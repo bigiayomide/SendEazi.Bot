@@ -14,6 +14,7 @@ public class BotStateDbContext(DbContextOptions<BotStateDbContext> options) : Sa
     {
         get { yield return new BotStateMap(); }
     }
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);

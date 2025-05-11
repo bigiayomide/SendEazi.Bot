@@ -93,7 +93,8 @@ public static class ServiceCollectionExtensions
         {
             x.AddConsumersFromNamespaceContaining<RawInboundMsgCmdConsumer>();
             x.AddSagaStateMachine<BotStateMachine, BotState, BotStateMachineDefinition>();
-            x.AddSagaStateMachine<DirectDebitMandateStateMachine, DirectDebitMandateState, DirectDebitMandateMachineDefinition>();
+            x.AddSagaStateMachine<DirectDebitMandateStateMachine, DirectDebitMandateState,
+                DirectDebitMandateMachineDefinition>();
             x.AddEntityFrameworkOutbox<ApplicationDbContext>(o =>
             {
                 o.UseSqlServer();

@@ -1,27 +1,27 @@
-// Bot.Core.Providers/BankProviderFactory.cs
-using System;
-using System.Threading.Tasks;
 using Bot.Infrastructure.Data;
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 
-namespace Bot.Core.Providers
+namespace Bot.Core.Providers;
+
+public class BankProviderFactory(IServiceProvider sp, ApplicationDbContext db) : IBankProviderFactory
 {
-    public class BankProviderFactory(IServiceProvider sp, ApplicationDbContext db) : IBankProviderFactory
+    public async Task<IBankProvider> GetProviderAsync(Guid userId, Guid? selectedBankId = null)
     {
-        public async Task<IBankProvider> GetProviderAsync(Guid userId)
+        var query = db.LinkedBankAccounts.AsQueryable();
+
+        var account = selectedBankId.HasValue
+            ? await query.FirstOrDefaultAsync(x => x.UserId == userId && x.Id == selectedBankId)
+            : await query.FirstOrDefaultAsync(x => x.UserId == userId && x.IsDefault);
+
+        if (account == null)
+            throw new InvalidOperationException("No linked bank account found");
+
+        return account.Provider switch
         {
-            var account = await db.LinkedBankAccounts.FirstOrDefaultAsync(x => x.UserId == userId);
-
-            if (account == null)
-                throw new InvalidOperationException("No linked bank for user");
-
-            return account.Provider switch
-            {
-                "Mono" => sp.GetRequiredService<MonoBankProvider>(),
-                "OnePipe" => sp.GetRequiredService<OnePipeBankProvider>(),
-                _ => throw new NotSupportedException("Unsupported provider: " + account.Provider)
-            };
-        }
+            "Mono" => sp.GetRequiredService<MonoBankProvider>(),
+            "OnePipe" => sp.GetRequiredService<OnePipeBankProvider>(),
+            _ => throw new NotSupportedException("Unsupported provider")
+        };
     }
 }

@@ -17,7 +17,8 @@ public interface IBudgetService
 
 public class BudgetService(ApplicationDbContext db) : IBudgetService
 {
-    public async Task<BudgetGoal> SetBudgetGoalAsync(Guid userId, string category, decimal limit, DateTime start, DateTime? end)
+    public async Task<BudgetGoal> SetBudgetGoalAsync(Guid userId, string category, decimal limit, DateTime start,
+        DateTime? end)
     {
         var goal = await db.BudgetGoals
             .FirstOrDefaultAsync(g => g.UserId == userId && g.Category == category);

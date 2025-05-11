@@ -3,9 +3,9 @@ using MassTransit;
 
 namespace Bot.Core.StateMachine.Consumers.Chat;
 
-public class BankLinkCmdConsumer(IUserService users, IEncryptionService encryption) : IConsumer<BankLinkCmd>
+public class BankLinkCmdConsumer(IUserService users, IEncryptionService encryption)
+    : IConsumer<BankLinkCmd>
 {
-
     public async Task Consume(ConsumeContext<BankLinkCmd> ctx)
     {
         var user = await users.GetByIdAsync(ctx.Message.CorrelationId);
@@ -15,6 +15,7 @@ public class BankLinkCmdConsumer(IUserService users, IEncryptionService encrypti
             ctx.Message.CorrelationId,
             user.FullName!,
             user.PhoneNumber,
-            encryption.Decrypt(user.BVNEnc)));
+            encryption.Decrypt(user.BVNEnc),
+            200_000_000));
     }
 }

@@ -1,11 +1,13 @@
 using System.Text.Json;
-using Bot.Core.StateMachine;
+using Bot.Core.StateMachine.Helpers;
+using Bot.Core.StateMachine.Mappers;
 using FastEndpoints;
 using MassTransit;
 
 namespace Bot.Host.Endpoints;
 
-public class MonoWebhookEndpoint(IPublishEndpoint bus, ILogger<MonoWebhookEndpoint> log) : EndpointWithoutRequest
+public class MonoWebhookEventConsumer(IPublishEndpoint bus, ILogger<MonoWebhookEventConsumer> log, IConfiguration cfg)
+    : EndpointWithoutRequest
 {
     public override void Configure()
     {
@@ -16,49 +18,55 @@ public class MonoWebhookEndpoint(IPublishEndpoint bus, ILogger<MonoWebhookEndpoi
     public override async Task HandleAsync(CancellationToken ct)
     {
         using var reader = new StreamReader(HttpContext.Request.Body);
-        var json = await reader.ReadToEndAsync(ct);
-        var doc = JsonDocument.Parse(json);
+        var raw = await reader.ReadToEndAsync(ct);
+
+        if (!ValidateSignature(raw))
+        {
+            log.LogWarning("Mono webhook failed signature validation.");
+            await SendAsync(new { error = "unauthorized" }, 401, ct);
+            return;
+        }
 
         try
         {
+            var doc = JsonDocument.Parse(raw);
             var type = doc.RootElement.GetProperty("event").GetString();
             var data = doc.RootElement.GetProperty("data");
 
-            var reference = data.GetProperty("reference").GetString()!;
-            var mandateId = data.GetProperty("mandate_id").GetString()!;
-            var userId = ExtractUserIdFromReference(reference);
-
-            switch (type)
+            object? evt = type switch
             {
-                case "mandate.approved":
-                case "mandate.ready_to_debit":
-                    await bus.Publish(new MandateReadyToDebit(userId, mandateId, "Mono"), ct);
-                    break;
+                "mandate.ready_to_debit" or "mandate.approved" =>
+                    WebhookToEventMapper.MapMonoMandate(data),
 
-                case "debit.successful":
-                    var txnId = data.GetProperty("transaction_reference").GetString()!;
-                    await bus.Publish(new TransferCompleted(userId, txnId), ct);
-                    break;
+                "debit.successful" =>
+                    WebhookToEventMapper.MapTransferSuccess(data, "Mono"),
 
-                case "debit.failed":
-                    var reason = data.GetProperty("failure_reason").GetString()!;
-                    await bus.Publish(new TransferFailed(userId, reason), ct);
-                    break;
-            }
+                "debit.failed" =>
+                    WebhookToEventMapper.MapTransferFailed(data),
+
+                _ => null
+            };
+
+            if (evt is CorrelatedBy<Guid> { CorrelationId: var id } && id != Guid.Empty)
+                await bus.Publish(evt, ct);
+            else
+                log.LogWarning("Invalid or unrecognized event: {Type}", type);
 
             await SendOkAsync(ct);
         }
         catch (Exception ex)
         {
-            log.LogError(ex, "Failed to handle Mono webhook.");
+            log.LogError(ex, "Failed to handle Mono webhook");
             await SendAsync(new { error = "bad payload" }, 400, ct);
         }
     }
 
-    private static Guid ExtractUserIdFromReference(string reference)
+    private bool ValidateSignature(string raw)
     {
-        // e.g., "user-uid:123e4567-..."
-        var match = reference.Split(":");
-        return Guid.TryParse(match.Length > 1 ? match[1] : match[0], out var id) ? id : Guid.Empty;
+        var key = cfg["Mono:WebhookSecret"];
+        if (string.IsNullOrWhiteSpace(key)) return false;
+
+        return HttpContext.Request.Headers.TryGetValue("x-mono-signature", out var sig) &&
+               SignatureVerifier.HmacIsValid(raw, key!, sig!);
     }
 }

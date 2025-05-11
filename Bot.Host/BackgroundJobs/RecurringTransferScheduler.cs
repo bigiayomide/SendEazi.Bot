@@ -3,9 +3,9 @@ using Quartz.Spi;
 
 namespace Bot.Host.BackgroundJobs;
 
-public class FeeSweepScheduler(
+public class RecurringTransferScheduler(
     IServiceProvider sp,
-    ILogger<FeeSweepScheduler> logger)
+    ILogger<RecurringTransferScheduler> logger)
     : IHostedService
 {
     private IScheduler _scheduler = null!;
@@ -16,19 +16,19 @@ public class FeeSweepScheduler(
         _scheduler = await factory.GetScheduler(cancellationToken);
         _scheduler.JobFactory = sp.GetRequiredService<IJobFactory>();
 
-        var job = JobBuilder.Create<FeeSweepJob>()
-            .WithIdentity("FeeSweepJob", "Billing")
+        var job = JobBuilder.Create<RecurringTransferJob>()
+            .WithIdentity("RecurringTransferJob", "Transfers")
             .Build();
 
         var trigger = TriggerBuilder.Create()
-            .WithIdentity("FeeSweepTrigger", "Billing")
-            .WithCronSchedule("0 0 0 * * ?") // daily at midnight UTC
+            .WithIdentity("RecurringTrigger", "Transfers")
+            .WithCronSchedule("0 */5 * * * ?") // Every 5 minutes
             .Build();
 
         await _scheduler.ScheduleJob(job, trigger, cancellationToken);
         await _scheduler.Start(cancellationToken);
 
-        logger.LogInformation("💸 FeeSweepJob scheduled (daily at midnight)");
+        logger.LogInformation("📆 RecurringTransferJob scheduled every 5 minutes");
     }
 
     public async Task StopAsync(CancellationToken cancellationToken)
@@ -36,7 +36,7 @@ public class FeeSweepScheduler(
         if (_scheduler != null)
         {
             await _scheduler.Shutdown(cancellationToken);
-            logger.LogInformation("⏹️ FeeSweepScheduler stopped");
+            logger.LogInformation("⏹️ RecurringTransferScheduler stopped");
         }
     }
 }

@@ -59,6 +59,7 @@ public class OnePipeWebhookEventConsumer(
     private bool ValidateSignature(string raw)
     {
         var key = cfg["OnePipe:WebhookSecret"];
-        return HttpContext.Request.Headers.TryGetValue("Signature", out var sig) && SignatureVerifier.HmacIsValid(raw, key!, sig!);
+        return HttpContext.Request.Headers.TryGetValue("Signature", out var sig) &&
+               SignatureVerifier.HmacIsValid(raw, key!, sig!);
     }
 }

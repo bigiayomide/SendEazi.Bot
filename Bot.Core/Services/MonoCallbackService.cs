@@ -1,6 +1,5 @@
 // Bot.Core.Services/MonoCallbackService.cs
 
-using System.Threading.Tasks;
 using Bot.Infrastructure.Data;
 using Bot.Shared.Enums;
 using Microsoft.EntityFrameworkCore;

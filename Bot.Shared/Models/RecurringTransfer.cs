@@ -16,6 +16,7 @@ public class RecurringTransfer
     public bool IsActive { get; set; }
 
     public DateTime CreatedAt { get; set; }
+
     [ForeignKey(nameof(DirectDebitMandate))]
     public Guid? MandateId { get; set; }
 

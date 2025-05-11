@@ -1,3 +1,5 @@
+using System.Security.Cryptography;
+using System.Text;
 using Bot.Infrastructure.Data;
 using Bot.Shared;
 using Bot.Shared.Enums;
@@ -37,8 +39,10 @@ public class UserService(ApplicationDbContext db) : IUserService
         return user;
     }
 
-    public Task<User?> GetByIdAsync(Guid userId) =>
-        db.Users.Include(x => x.PersonalitySettings).FirstOrDefaultAsync(x => x.Id == userId);
+    public Task<User?> GetByIdAsync(Guid userId)
+    {
+        return db.Users.Include(x => x.PersonalitySettings).FirstOrDefaultAsync(x => x.Id == userId);
+    }
 
     public async Task SetPersonalityAsync(Guid userId, PersonalityEnum p)
     {
@@ -54,8 +58,19 @@ public class UserService(ApplicationDbContext db) : IUserService
         await db.SaveChangesAsync();
     }
 
-    public Task<bool> RunKycAsync(Guid userId) => Task.FromResult(true);
+    public Task<bool> RunKycAsync(Guid userId)
+    {
+        return Task.FromResult(true);
+    }
 
-    private static string Encrypt(string val) => Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(val));
-    private static string Hash(string val) => Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(val)));
+    private static string Encrypt(string val)
+    {
+        return Convert.ToBase64String(Encoding.UTF8.GetBytes(val));
+    }
+
+    private static string Hash(string val)
+    {
+        return Convert.ToHexString(
+            SHA256.HashData(Encoding.UTF8.GetBytes(val)));
+    }
 }

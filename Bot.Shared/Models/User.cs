@@ -8,7 +8,7 @@ public class User
 
     public string PhoneNumber { get; set; } = null!;
     public string? PinHash { get; set; }
-    
+
     public string NINEnc { get; set; }
     public string BVNEnc { get; set; }
     public string NINHash { get; set; }

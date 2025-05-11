@@ -12,15 +12,15 @@ public interface IEncryptionService
 
 public class EncryptionService(string base64Key) : IEncryptionService
 {
-    private readonly byte[] _key = Convert.FromBase64String(base64Key);      // 32-byte AES key
+    private readonly byte[] _key = Convert.FromBase64String(base64Key); // 32-byte AES key
 
     public string Encrypt(string plaintext)
     {
         using var aes = new AesGcm(_key);
-        var iv   = RandomNumberGenerator.GetBytes(12);
-        var pt   = Encoding.UTF8.GetBytes(plaintext);
-        var ct   = new byte[pt.Length];
-        var tag  = new byte[16];
+        var iv = RandomNumberGenerator.GetBytes(12);
+        var pt = Encoding.UTF8.GetBytes(plaintext);
+        var ct = new byte[pt.Length];
+        var tag = new byte[16];
         aes.Encrypt(iv, pt, ct, tag);
         return Convert.ToBase64String(iv) + "|" +
                Convert.ToBase64String(tag) + "|" +
@@ -30,10 +30,10 @@ public class EncryptionService(string base64Key) : IEncryptionService
     public string Decrypt(string cipher)
     {
         var parts = cipher.Split('|');
-        var iv  = Convert.FromBase64String(parts[0]);
+        var iv = Convert.FromBase64String(parts[0]);
         var tag = Convert.FromBase64String(parts[1]);
-        var ct  = Convert.FromBase64String(parts[2]);
-        var pt  = new byte[ct.Length];
+        var ct = Convert.FromBase64String(parts[2]);
+        var pt = new byte[ct.Length];
         using var aes = new AesGcm(_key);
         aes.Decrypt(iv, ct, tag, pt);
         return Encoding.UTF8.GetString(pt);

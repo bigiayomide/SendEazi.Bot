@@ -107,8 +107,15 @@ public class ConversationStateService : IConversationStateService
         return state.IsNullOrEmpty ? "None" : state!;
     }
 
-    private string SessionKey(Guid id) => $"{_opts.RedisKeyPrefix}{id}";
-    private string IndexKey(string phone) => $"{_opts.RedisKeyPrefix}index:{phone}";
+    private string SessionKey(Guid id)
+    {
+        return $"{_opts.RedisKeyPrefix}{id}";
+    }
+
+    private string IndexKey(string phone)
+    {
+        return $"{_opts.RedisKeyPrefix}index:{phone}";
+    }
 
     private ConversationSession Map(HashEntry[] hash)
     {

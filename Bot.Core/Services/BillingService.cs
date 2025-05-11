@@ -3,7 +3,6 @@ using Bot.Shared.Models;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 
-
 namespace Bot.Core.Services;
 
 public interface IBillingService
@@ -11,8 +10,6 @@ public interface IBillingService
     Task HandleTransferCompletedAsync(Guid transactionId);
     Task SweepFeesAsync();
 }
-
-
 
 public class BillingService(ApplicationDbContext db, ILogger<BillingService> logger) : IBillingService
 {

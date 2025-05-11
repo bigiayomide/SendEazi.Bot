@@ -8,7 +8,6 @@ public interface ITextToSpeechService
     Task<Stream> SynthesizeAsync(string text, string localeCode);
 }
 
-
 /// <summary>
 ///     Picks the best matching neural voice for a locale from the provided VoiceInfo list.
 /// </summary>

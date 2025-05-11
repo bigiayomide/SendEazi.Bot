@@ -14,18 +14,18 @@ public interface INudgeService
 
 public class NudgeService(ApplicationDbContext db) : INudgeService
 {
-    private readonly Random _rng = new();
-
     private static readonly Dictionary<NudgeType, string> _assets = new()
     {
-        [NudgeType.InvalidNin]       = "https://cdn.bot.ng/nudges/nin-invalid.gif",
-        [NudgeType.InvalidBvn]       = "https://cdn.bot.ng/nudges/bvn-invalid.gif",
-        [NudgeType.ServiceDown]      = "https://cdn.bot.ng/nudges/service-down.png",
-        [NudgeType.BadPin]           = "https://cdn.bot.ng/nudges/wrong-pin.png",
-        [NudgeType.TransferFail]     = "https://cdn.bot.ng/nudges/tx-failed.gif",
+        [NudgeType.InvalidNin] = "https://cdn.bot.ng/nudges/nin-invalid.gif",
+        [NudgeType.InvalidBvn] = "https://cdn.bot.ng/nudges/bvn-invalid.gif",
+        [NudgeType.ServiceDown] = "https://cdn.bot.ng/nudges/service-down.png",
+        [NudgeType.BadPin] = "https://cdn.bot.ng/nudges/wrong-pin.png",
+        [NudgeType.TransferFail] = "https://cdn.bot.ng/nudges/tx-failed.gif",
         [NudgeType.WaitingOnMandate] = "https://cdn.bot.ng/nudges/mandate-wait.gif",
-        [NudgeType.BudgetAlert]      = "https://cdn.bot.ng/nudges/limit-near.png"
+        [NudgeType.BudgetAlert] = "https://cdn.bot.ng/nudges/limit-near.png"
     };
+
+    private readonly Random _rng = new();
 
     public Task<Nudge> RequestNudgeAsync(Guid userId, string content, DateTime scheduledAt)
     {
@@ -44,8 +44,10 @@ public class NudgeService(ApplicationDbContext db) : INudgeService
         return Task.FromResult(n);
     }
 
-    public IQueryable<Nudge> GetDueNudgesAsync(DateTime asOfUtc) =>
-        db.Nudges.Where(n => !n.IsSent && n.ScheduledAt <= asOfUtc);
+    public IQueryable<Nudge> GetDueNudgesAsync(DateTime asOfUtc)
+    {
+        return db.Nudges.Where(n => !n.IsSent && n.ScheduledAt <= asOfUtc);
+    }
 
     public Task MarkAsSentAsync(Nudge nudge)
     {
@@ -54,8 +56,10 @@ public class NudgeService(ApplicationDbContext db) : INudgeService
         return db.SaveChangesAsync();
     }
 
-    public string SelectAsset(NudgeType type) =>
-        _assets.TryGetValue(type, out var url)
+    public string SelectAsset(NudgeType type)
+    {
+        return _assets.TryGetValue(type, out var url)
             ? url
             : "https://cdn.bot.ng/nudges/default.png";
+    }
 }

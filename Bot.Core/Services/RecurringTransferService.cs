@@ -1,6 +1,8 @@
+using Bot.Core.StateMachine;
 using Bot.Infrastructure.Data;
 using Bot.Shared;
 using Bot.Shared.Models;
+using MassTransit;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using NCrontab;
@@ -14,9 +16,11 @@ public interface IRecurringTransferService
     Task<Guid> ScheduleAsync(Guid userId, RecurringPayload payload);
 }
 
-
-
-public class RecurringTransferService(ApplicationDbContext db, ILogger<RecurringTransferService> log)
+public class RecurringTransferService(
+    ApplicationDbContext db,
+    ILogger<RecurringTransferService> log,
+    IReferenceGenerator referenceGenerator,
+    IPublishEndpoint bus)
     : IRecurringTransferService
 {
     private readonly ILogger<RecurringTransferService> _log = log;
@@ -24,16 +28,41 @@ public class RecurringTransferService(ApplicationDbContext db, ILogger<Recurring
     public async Task ProcessDueTransfersAsync()
     {
         var now = DateTime.UtcNow;
-        var due = await db.RecurringTransfers
+
+        var dueTransfers = await db.RecurringTransfers
             .Where(r => r.IsActive && r.NextRun <= now)
             .Include(r => r.Payee)
             .ToListAsync();
 
-        foreach (var r in due)
-        {
-            // TODO: Dispatch transfer command here
-            r.NextRun = CrontabSchedule.Parse(r.CronExpression).GetNextOccurrence(now);
-        }
+        foreach (var r in dueTransfers)
+            try
+            {
+                var reference = referenceGenerator.GenerateTransferRef(
+                    r.UserId,
+                    r.Payee.AccountNumber,
+                    r.Payee.BankCode
+                );
+
+                var payload = new TransferPayload(
+                    r.Payee.AccountNumber,
+                    r.Payee.BankCode,
+                    r.Amount,
+                    $"Recurring to {r.Payee.Nickname ?? "beneficiary"}");
+
+                await bus.Publish(new TransferCmd(
+                    r.UserId,
+                    payload,
+                    reference
+                ));
+
+                r.NextRun = CrontabSchedule
+                    .Parse(r.CronExpression)
+                    .GetNextOccurrence(now);
+            }
+            catch (Exception ex)
+            {
+                log.LogError(ex, "Failed to publish recurring transfer for RecurringId: {RecurringId}", r.Id);
+            }
 
         await db.SaveChangesAsync();
     }

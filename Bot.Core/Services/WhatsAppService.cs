@@ -17,7 +17,6 @@ public interface IWhatsAppService
 
 // Bot.Infrastructure/Services/WhatsAppService.cs
 
-
 public class WhatsAppOptions
 {
     public string BaseUrl { get; set; } = "https://graph.facebook.com/v18.0";
@@ -68,7 +67,8 @@ public class WhatsAppService : IWhatsAppService
         return await SendPayloadAsync(payload);
     }
 
-    public async Task<string> SendQuickReplyAsync(string toPhoneNumber, string header, string body, string[] buttonLabels)
+    public async Task<string> SendQuickReplyAsync(string toPhoneNumber, string header, string body,
+        string[] buttonLabels)
     {
         var buttons = buttonLabels.Select((label, index) => new
         {
@@ -155,5 +155,6 @@ public class WhatsAppService : IWhatsAppService
     }
 
     private record SendMessageResponse(SendMessageWrapper[]? Messages);
+
     private record SendMessageWrapper(string? Id);
 }

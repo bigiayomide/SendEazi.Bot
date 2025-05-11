@@ -1,8 +1,10 @@
 using System.Text.Json;
 using Bot.Core.Services;
 using Bot.Core.StateMachine;
+using Bot.Infrastructure.Data;
 using FastEndpoints;
 using MassTransit;
+using Microsoft.EntityFrameworkCore;
 
 namespace Bot.Host.Endpoints;
 
@@ -10,6 +12,7 @@ public class WhatsAppWebhookEndpoint(
     IConfiguration cfg,
     IConversationStateService state,
     IPublishEndpoint bus,
+    ApplicationDbContext db,
     ILogger<WhatsAppWebhookEndpoint> log)
     : EndpointWithoutRequest
 {
@@ -30,7 +33,7 @@ public class WhatsAppWebhookEndpoint(
 
             if (mode == "subscribe" && token == cfg["WhatsApp:VerifyToken"])
             {
-                await SendStringAsync(challenge, 200,  cancellation:ct);
+                await SendStringAsync(challenge, cancellation: ct);
                 return;
             }
 
@@ -66,18 +69,23 @@ public class WhatsAppWebhookEndpoint(
             {
                 "text" => msg.GetProperty("text").GetProperty("body").GetString()!,
                 "button" => msg.GetProperty("button").GetProperty("text").GetString()!,
-                "interactive" => msg.GetProperty("interactive").GetProperty("button_reply").GetProperty("title").GetString()!,
+                "interactive" => msg.GetProperty("interactive").GetProperty("button_reply").GetProperty("title")
+                    .GetString()!,
                 _ => "[[unsupported]]"
             };
 
             var session = await state.GetOrCreateSessionAsync(phone);
-            var correlationId = session.UserId == Guid.Empty ? Guid.NewGuid() : session.UserId;
+            var correlationId = session.UserId != Guid.Empty ? session.UserId : Guid.NewGuid();
 
-            await bus.Publish(new RawInboundMsgCmd(
-                correlationId,
-                phone,
-                text,
-                msgId), ct);
+            var payeeMatch = await db.Payees.AnyAsync(p =>
+                p.UserId == correlationId &&
+                p.Nickname != null &&
+                p.Nickname.ToLower() == text.ToLower(), ct);
+
+            if (payeeMatch)
+                await bus.Publish(new ResolveQuickReplyCmd(correlationId, text), ct);
+            else
+                await bus.Publish(new RawInboundMsgCmd(correlationId, phone, text, msgId), ct);
 
             await state.UpdateLastMessageAsync(session.SessionId, text);
             await SendOkAsync(ct);

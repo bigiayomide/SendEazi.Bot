@@ -1,6 +1,6 @@
 using Bot.Shared.Models;
 
-namespace Bot.Core.Mappers;
+namespace Bot.Core.StateMachine.Mappers;
 
 public static class MandateToResponseMapper
 {
@@ -8,11 +8,11 @@ public static class MandateToResponseMapper
     {
         return new
         {
-            Id       = m.Id,
-            Provider = m.Provider,
-            Status   = m.Status,
+            m.Id,
+            m.Provider,
+            m.Status,
             MaxLimit = m.MaxAmount,
-            Expires  = m.ExpiresAt?.ToString("yyyy-MM-dd"),
+            Expires = m.ExpiresAt?.ToString("yyyy-MM-dd"),
             LinkedTo = m.TransferDestinationAccount
         };
     }

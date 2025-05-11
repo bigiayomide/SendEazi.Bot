@@ -8,7 +8,6 @@ public enum TransactionStatus
     Cancelled = 3
 }
 
-
 public enum BillerEnum
 {
     DSTV,
@@ -22,7 +21,9 @@ public enum RewardTypeEnum
     Badge,
     Discount,
     Cashback,
-    Streak, RecurringStreak, GoalAchieved
+    Streak,
+    RecurringStreak,
+    GoalAchieved
 }
 
 public enum PersonalityEnum

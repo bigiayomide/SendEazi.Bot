@@ -25,6 +25,9 @@ public abstract class RawInboundMsgCmdConsumer(IConversationStateService session
             case "AskBvn":
                 await ctx.Publish(new BvnProvided(correlationId, text));
                 break;
+            case "AwaitingPinSetup":
+                await ctx.Publish(new PinSetupCmd(correlationId, text, ctx.Message.MessageId));
+                break;
             default:
                 await ctx.Publish(new VoiceMessageTranscribed(correlationId, text, "auto"));
                 break;
