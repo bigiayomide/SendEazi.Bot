@@ -30,21 +30,14 @@ public class ConversationStateOptions
     public TimeSpan SessionTtl { get; set; } = TimeSpan.FromHours(24);
 }
 
-public class ConversationStateService : IConversationStateService
+public class ConversationStateService(
+    IConnectionMultiplexer redis,
+    IOptions<ConversationStateOptions> opts,
+    ILogger<ConversationStateService> logger)
+    : IConversationStateService
 {
-    private readonly ILogger<ConversationStateService> _logger;
-    private readonly ConversationStateOptions _opts;
-    private readonly IDatabase _redis;
-
-    public ConversationStateService(
-        IConnectionMultiplexer redis,
-        IOptions<ConversationStateOptions> opts,
-        ILogger<ConversationStateService> logger)
-    {
-        _redis = redis.GetDatabase();
-        _opts = opts.Value;
-        _logger = logger;
-    }
+    private readonly ConversationStateOptions _opts = opts.Value;
+    private readonly IDatabase _redis = redis.GetDatabase();
 
     public async Task<ConversationSession> GetOrCreateSessionAsync(string phoneNumber)
     {
@@ -76,7 +69,7 @@ public class ConversationStateService : IConversationStateService
         tran.StringSetAsync(idxKey, newId.ToString(), _opts.SessionTtl);
         await tran.ExecuteAsync();
 
-        _logger.LogDebug("Created session {Sid} for phone {Phone}", newId, phoneNumber);
+        logger.LogDebug("Created session {Sid} for phone {Phone}", newId, phoneNumber);
 
         return new ConversationSession
         {

@@ -1,4 +1,7 @@
+// File: Bot.Core.StateMachine.Mappers/WebhookToEventMapper.cs
+
 using System.Text.Json;
+using Bot.Shared;
 
 namespace Bot.Core.StateMachine.Mappers;
 
@@ -6,45 +9,39 @@ public static class WebhookToEventMapper
 {
     public static MandateReadyToDebit MapMonoMandate(JsonElement data)
     {
-        var reference = data.GetProperty("reference").GetString()!;
+        var refStr = data.GetProperty("reference").GetString()!;
         var mandateId = data.GetProperty("mandate_id").GetString()!;
-        var correlationId = ExtractUserId(reference);
-
-        return new MandateReadyToDebit(correlationId, mandateId, "Mono");
+        return new MandateReadyToDebit(GetUserId(refStr), mandateId, "Mono");
     }
 
     public static MandateReadyToDebit MapOnePipeMandate(JsonElement txn)
     {
-        var reference = txn.GetProperty("transaction_ref").GetString()!;
+        var refStr = txn.GetProperty("transaction_ref").GetString()!;
         var mandateId = txn.GetProperty("mandate_id").GetString()!;
-        var correlationId = ExtractUserId(reference);
-
-        return new MandateReadyToDebit(correlationId, mandateId, "OnePipe");
+        return new MandateReadyToDebit(GetUserId(refStr), mandateId, "OnePipe");
     }
 
     public static TransferCompleted MapTransferSuccess(JsonElement payload, string provider)
     {
-        var reference = payload.GetProperty("transaction_ref").GetString()!;
-        var txnId = payload.GetProperty("transaction_id").GetString()!;
-        var correlationId = ExtractUserId(reference);
-
-        return new TransferCompleted(correlationId, txnId);
+        var refStr = payload.GetProperty("transaction_ref").GetString()!;
+        return new TransferCompleted(GetUserId(refStr), refStr); // Reference used to find Transaction
     }
 
     public static TransferFailed MapTransferFailed(JsonElement payload)
     {
-        var reference = payload.GetProperty("transaction_ref").GetString()!;
-        var reason = payload.GetProperty("failure_reason").GetString()!;
-        var correlationId = ExtractUserId(reference);
+        var refStr = payload.GetProperty("transaction_ref").GetString()!;
+        var reason = payload.TryGetProperty("failure_reason", out var r)
+            ? r.GetString() ?? "Unknown"
+            : "No reason provided";
 
-        return new TransferFailed(correlationId, reason);
+        return new TransferFailed(GetUserId(refStr), reason, refStr);
     }
 
-    private static Guid ExtractUserId(string reference)
+    private static Guid GetUserId(string reference)
     {
-        var parts = reference.Split(":");
-        if (parts.Length >= 2 && Guid.TryParse(parts[1], out var id)) return id;
-        Console.WriteLine($"⚠️ Invalid reference format: {reference}");
-        return Guid.Empty;
+        var match = reference.Split(":");
+        return Guid.TryParse(match.Length > 1 ? match[1] : match[0], out var id)
+            ? id
+            : Guid.Empty;
     }
 }

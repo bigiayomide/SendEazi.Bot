@@ -1,4 +1,8 @@
+using System.ClientModel;
 using Azure;
+using Azure.AI.FormRecognizer.DocumentAnalysis;
+using Azure.AI.OpenAI;
+using Azure.Identity;
 using Bot.Core.Models;
 using Bot.Core.Providers;
 using Bot.Core.Services;
@@ -9,8 +13,12 @@ using Bot.Infrastructure.Configuration;
 using Bot.Infrastructure.Data;
 using Bot.Shared.Models;
 using MassTransit;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
+using Npgsql;
 using OpenAI;
+using OpenAI.Chat;
 using Quartz;
 using Quartz.Impl;
 using Quartz.Spi;
@@ -24,7 +32,9 @@ public static class ServiceCollectionExtensions
     public static IServiceCollection AddBotServices(this IServiceCollection services, IConfiguration cfg)
     {
         services.AddDbContext<ApplicationDbContext>(o =>
-            o.UseSqlServer(cfg.GetConnectionString("DefaultConnection")));
+            o.UseNpgsql(cfg.GetConnectionString("DefaultConnection")));
+        services.AddDbContext<BotStateDbContext>(o =>
+            o.UseNpgsql(cfg.GetConnectionString("MassTransitConnection")));
 
         services.AddSingleton<IConnectionMultiplexer>(_ =>
             ConnectionMultiplexer.Connect(cfg.GetConnectionString("Redis")));
@@ -51,64 +61,147 @@ public static class ServiceCollectionExtensions
             .AddScoped<INotificationService, NotificationService>()
             .AddScoped<IIdentityVerificationService, IdentityVerificationService>()
             .AddScoped<IMonoCallbackService, MonoCallbackService>()
-            .AddScoped<IOnePipeCallbackService, OnePipeCallbackService>();
+            .AddScoped<IOnePipeCallbackService, OnePipeCallbackService>()
+            .AddScoped<IPasswordHasher<User>, PasswordHasher<User>>()
+            .AddScoped<IReferenceGenerator, ReferenceGenerator>()
+            .AddScoped<IChatClientWrapper, ChatClientWrapper>()
+            .AddMemoryCache()
+            .AddScoped<DocumentAnalysisClient>(sp =>
+            {
+                var config = sp.GetRequiredService<IOptions<FormRecognizerOptions>>().Value;
+                return new DocumentAnalysisClient(new Uri(config.Endpoint), new AzureKeyCredential(config.ApiKey));
+            })
+            .AddStackExchangeRedisCache(options =>
+            {
+                options.Configuration = cfg.GetConnectionString("Redis");
+            });
 
         services.Configure<AzureOpenAiOptions>(cfg.GetSection("AzureOpenAI"));
-        services.AddSingleton(sp =>
+        services.AddScoped<AzureOpenAIClient>(sp =>
         {
             var opts = cfg.GetSection("AzureOpenAI").Get<AzureOpenAiOptions>()!;
-            return new OpenAIClient(new AzureKeyCredential(opts.ApiKey));
+            return new AzureOpenAIClient(new Uri(opts.Endpoint), new ApiKeyCredential(opts.ApiKey));
         });
-        services.AddSingleton<INlpService, NlpService>();
+        services.AddScoped<INlpService, NlpService>();
 
         services.Configure<FormRecognizerOptions>(cfg.GetSection("FormRecognizer"));
         services.AddScoped<IOcrService, OcrService>();
 
         services.Configure<SpeechOptions>(cfg.GetSection("Speech"));
-        services.AddScoped<ITranscriptionService, TranscriptionService>();
+        services.AddScoped<ITranscriptionService, TranscriptionService>(x =>
+        {
+            var region = cfg.GetSection("Transcription").GetSection("Region")!.Value;
+            var subscriptionKey = cfg.GetSection("Transcription").GetSection("SubscriptionKey")!.Value;
+            return new TranscriptionService(subscriptionKey, region);
+        });
         services.Configure<TextToSpeechOptions>(cfg.GetSection("TextToSpeech"));
-        services.AddSingleton<ITextToSpeechService, TextToSpeechService>();
+        services.AddScoped<ITextToSpeechService, TextToSpeechService>();
 
         services.Configure<MonoOptions>(cfg.GetSection("Mono"));
         services.AddHttpClient<MonoBankProvider>();
+        services.AddScoped<MonoBankProvider>();
         services.Configure<OnePipeOptions>(cfg.GetSection("OnePipe"));
         services.AddHttpClient<OnePipeBankProvider>();
         services.AddScoped<IBankProviderFactory, BankProviderFactory>();
+        services.AddScoped<OnePipeBankProvider>();  
+
 
         services.Configure<WhatsAppOptions>(cfg.GetSection("WhatsApp"));
+        services.Configure<PromptSettings>(cfg.GetSection("PromptSettings"));
+        
         services.AddHttpClient<IWhatsAppService, WhatsAppService>();
         services.Configure<SmsOptions>(cfg.GetSection("Sms"));
-        services.AddSingleton<ISmsBackupService, SmsBackupService>();
+        services.AddScoped<ISmsBackupService, SmsBackupService>();
 
         services.AddSingleton<IJobFactory, SingletonJobFactory>();
         services.AddSingleton<ISchedulerFactory, StdSchedulerFactory>();
+        services.AddScoped<IEncryptionService, EncryptionService>();
 
-        services.AddSingleton<RecurringTransferJob>();
+        services.AddScoped<RecurringTransferJob>();
         services.AddSingleton(new JobSchedule(typeof(RecurringTransferJob), cfg["Schedules:RecurringTransfer"]));
         // services.AddSingleton<BudgetAlertJob>();
         // services.AddSingleton(new JobSchedule(typeof(BudgetAlertJob), cfg["Schedules:BudgetAlert"]));
         services.AddHostedService<QuartzHostedService>();
-
+        
+        var connectionString = cfg.GetConnectionString("MassTransitConnection");
+        ConfigurePostgresTransport(services, connectionString);
         services.AddMassTransit(x =>
         {
             x.AddConsumersFromNamespaceContaining<RawInboundMsgCmdConsumer>();
             x.AddSagaStateMachine<BotStateMachine, BotState, BotStateMachineDefinition>();
             x.AddSagaStateMachine<DirectDebitMandateStateMachine, DirectDebitMandateState,
                 DirectDebitMandateMachineDefinition>();
-            x.AddEntityFrameworkOutbox<ApplicationDbContext>(o =>
+            x.AddJobSagaStateMachines()
+                .EntityFrameworkRepository(r =>
+                {
+                    r.ExistingDbContext<BotStateDbContext>();
+                    r.UsePostgres();
+                });
+            
+            x.SetEntityFrameworkSagaRepositoryProvider(r =>
             {
-                o.UseSqlServer();
+                r.ExistingDbContext<BotStateDbContext>();
+                r.UsePostgres();
+            });
+
+            x.AddEntityFrameworkOutbox<BotStateDbContext>(o =>
+            {
+                o.UsePostgres();
                 o.UseBusOutbox();
             });
-            x.UsingAzureServiceBus((ctx, sbfCfg) =>
+            // x.UsingAzureServiceBus((ctx, sbfCfg) =>
+            // {
+            //     sbfCfg.Host(cfg["AzureSB"]);
+            //     sbfCfg.ConfigureEndpoints(ctx);
+            // });
+            
+            x.UsingPostgres((context, cfg) =>
             {
-                sbfCfg.Host(cfg["AzureSB"]);
-                sbfCfg.ConfigureEndpoints(ctx);
+                cfg.UseSqlMessageScheduler();
+            
+                cfg.UseJobSagaPartitionKeyFormatters();
+            
+                cfg.AutoStart = true;
+            
+                cfg.ConfigureEndpoints(context);
             });
+
+            x.AddSqlMessageScheduler();
         });
 
         return services;
     }
+    
+    private static IServiceCollection ConfigurePostgresTransport(IServiceCollection services, string? connectionString,
+        bool create = true,
+        bool delete = false)
+    {
+        var builder = new NpgsqlConnectionStringBuilder(connectionString);
+
+        services.AddOptions<SqlTransportOptions>().Configure(options =>
+        {
+            options.Host = builder.Host ?? "localhost";
+            options.Database = builder.Database ?? "sample";
+            options.Schema = "transport";
+            options.Role = "transport";
+            options.Port = builder.Port;
+            options.Username = builder.Username;
+            options.Password = builder.Password;
+            options.AdminUsername = builder.Username;
+            options.AdminPassword = builder.Password;
+        });
+
+        services.AddPostgresMigrationHostedService(x =>
+        {
+            x.CreateDatabase = false;
+            x.CreateInfrastructure = true;
+            x.DeleteDatabase = false;
+            x.CreateSchema = true;
+        });
+
+        return services;
+    }
+
 }
 
 public record JobSchedule(Type JobType, string CronExpression);

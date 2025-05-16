@@ -34,17 +34,17 @@ public record UserIntentDetected(
     RecurringPayload? RecurringPayload = null,
     MemoPayload? MemoPayload = null,
     FeedbackPayload? FeedbackPayload = null,
-    SignupPayload? SignupPayload = null);
+    SignupPayload? SignupPayload = null,
+    GrettingPayload? GreetingPayload = null,
+    UnknownPayload UnknownPayload = null);
 
 /* money */
-public record TransferCompleted(
-    Guid CorrelationId,
-    string TransactionId,
-    Guid? GoalIdIfAny = null);
+public record TransferCompleted(Guid CorrelationId, string Reference);
 
 public record TransferRequested(Guid CorrelationId, TransferPayload Payload, Guid? BankAccountId = null);
 
-public record TransferFailed(Guid CorrelationId, string Reason);
+public record TransferFailed(Guid CorrelationId, string Reason, string Reference);
+
 
 public record BillPaid(
     Guid CorrelationId,

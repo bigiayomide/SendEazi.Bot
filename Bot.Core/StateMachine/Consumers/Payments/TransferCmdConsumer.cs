@@ -1,3 +1,5 @@
+// File: Bot.Core.Consumers.Payments/TransferCmdConsumer.cs
+
 using Bot.Core.Providers;
 using Bot.Infrastructure.Data;
 using Bot.Shared.Enums;
@@ -17,94 +19,66 @@ public class TransferCmdConsumer(
     public async Task Consume(ConsumeContext<TransferCmd> ctx)
     {
         var userId = ctx.Message.CorrelationId;
-        var user = await db.Users.FindAsync(userId);
-        if (user is null)
-        {
-            log.LogWarning("Transfer failed: user not found.");
-            await ctx.Publish(new TransferFailed(userId, "User not found"));
-            return;
-        }
-
         var reference = ctx.Message.Reference;
 
+        // 🔒 Prevent duplicate transactions
         var exists = await db.Transactions.AnyAsync(t => t.Reference == reference);
         if (exists)
         {
-            log.LogWarning("Duplicate transfer for reference {Ref}", reference);
+            log.LogWarning("Duplicate transfer attempt for reference {Ref}", reference);
             return;
         }
 
-        var existing = await db.Transactions.AnyAsync(t => t.Reference == reference);
-        if (existing)
+        var user = await db.Users.FindAsync(userId);
+        if (user == null)
         {
-            log.LogWarning("Duplicate transfer attempt");
+            await ctx.Publish(new TransferFailed(userId, "User not found", reference));
             return;
         }
 
-        // ✅ Get provider based on optional bank account ID
-        var provider = await factory.GetProviderAsync(user.Id, ctx.Message.BankAccountId);
-
-        // ✅ Validate mandate
         var mandate = await db.DirectDebitMandates
-            .Where(x => x.UserId == user.Id && x.Status == "ready" && !x.IsRevoked)
+            .Where(x => x.UserId == userId && x.Status == "ready" && !x.IsRevoked)
             .OrderByDescending(x => x.CreatedAt)
             .FirstOrDefaultAsync();
 
-        if (mandate is null)
+        if (mandate == null)
         {
-            await ctx.Publish(new TransferFailed(userId, "No active mandate available."));
+            await ctx.Publish(new TransferFailed(userId, "No active mandate", reference));
             return;
         }
 
-        // ✅ Save Transaction
-        var payload = ctx.Message.Payload;
+        var provider = await factory.GetProviderAsync(userId, ctx.Message.BankAccountId);
+
         var tx = new Transaction
         {
             Id = Guid.NewGuid(),
             UserId = user.Id,
             TenantId = user.TenantId,
-            Amount = payload.Amount,
+            Amount = ctx.Message.Payload.Amount,
             Status = TransactionStatus.Pending,
             CreatedAt = DateTime.UtcNow,
             Reference = reference,
-            RecipientName = payload.Description ?? "Beneficiary"
+            RecipientName = ctx.Message.Payload.Description ?? "Beneficiary"
         };
 
         db.Transactions.Add(tx);
-
-        var raw = new DirectDebitTransaction
-        {
-            Id = Guid.NewGuid(),
-            UserId = user.Id,
-            MandateId = mandate.Id,
-            Amount = tx.Amount,
-            Reference = reference,
-            Narration = payload.Description ?? "Auto debit",
-            Status = DirectDebitStatus.Pending,
-            RequestedAt = DateTime.UtcNow
-        };
-
-        db.Add(raw);
         await db.SaveChangesAsync();
 
         try
         {
             var providerTxnId = await provider.InitiateDebitAsync(
-                mandate.MandateId!,
-                tx.Amount,
-                reference,
-                raw.Narration
+                mandateId: mandate.MandateId!,
+                amount: tx.Amount,
+                reference: reference,
+                narration: tx.RecipientName
             );
 
-            raw.ProviderTransactionId = providerTxnId;
-            await db.SaveChangesAsync();
+            log.LogInformation("Transfer initiated: {Ref} (ProviderTxnId: {Id})", reference, providerTxnId);
         }
         catch (Exception ex)
         {
-            log.LogError(ex, "Transfer initiation failed");
-            await ctx.Publish(new TransferFailed(userId, "Provider error"));
+            log.LogError(ex, "Failed to initiate transfer for ref {Ref}", reference);
+            await ctx.Publish(new TransferFailed(userId, "Provider error", reference));
         }
-
-        // Note: we wait for webhook to confirm success/failure
     }
 }

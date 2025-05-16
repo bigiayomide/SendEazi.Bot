@@ -7,9 +7,13 @@ namespace Bot.Core.StateMachine;
 
 public class DirectDebitMandateStateMachine : MassTransitStateMachine<DirectDebitMandateState>
 {
-    public Event<MandateReadyToDebit> ReadyEvt = default!; // internal loopback
+    public Event<MandateReadyToDebit> ReadyEvt { get; private set; } = null!;
 
-    public Event<StartMandateSetupCmd> StartCmd = default!;
+    public Event<StartMandateSetupCmd> StartCmd { get; private set; } = null!;
+    
+    
+    public State AwaitingApproval { get; private set; } = null!;
+    public State Ready { get; private set; } = null!;
 
     public DirectDebitMandateStateMachine()
     {
@@ -53,7 +57,4 @@ public class DirectDebitMandateStateMachine : MassTransitStateMachine<DirectDebi
 
         SetCompletedWhenFinalized();
     }
-
-    public State AwaitingApproval { get; } = null!;
-    public State Ready { get; } = null!;
 }

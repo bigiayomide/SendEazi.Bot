@@ -8,14 +8,9 @@ public interface ITranscriptionService
     Task<(string Text, string DetectedLanguage)> TranscribeAsync(Stream audioStream, string[] languageCodes);
 }
 
-public class TranscriptionService : ITranscriptionService
+public class TranscriptionService(string subscriptionKey, string region) : ITranscriptionService
 {
-    private readonly SpeechConfig _speechConfig;
-
-    public TranscriptionService(string subscriptionKey, string region)
-    {
-        _speechConfig = SpeechConfig.FromSubscription(subscriptionKey, region);
-    }
+    private readonly SpeechConfig _speechConfig = SpeechConfig.FromSubscription(subscriptionKey, region);
 
     public async Task<(string Text, string DetectedLanguage)> TranscribeAsync(Stream audioStream,
         string[] languageCodes)

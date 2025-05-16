@@ -1,4 +1,5 @@
 using System.Text.Json;
+using Bot.Core.Helpers;
 using Bot.Core.Services;
 using Bot.Core.StateMachine;
 using Bot.Infrastructure.Data;
@@ -11,7 +12,7 @@ namespace Bot.Host.Endpoints;
 public class WhatsAppWebhookEndpoint(
     IConfiguration cfg,
     IConversationStateService state,
-    IPublishEndpoint bus,
+    IBusControl bus,
     ApplicationDbContext db,
     ILogger<WhatsAppWebhookEndpoint> log)
     : EndpointWithoutRequest
@@ -42,8 +43,16 @@ public class WhatsAppWebhookEndpoint(
         }
 
         using var reader = new StreamReader(HttpContext.Request.Body);
-        var json = await reader.ReadToEndAsync(ct);
-        var doc = JsonDocument.Parse(json);
+        var jsonBody = await reader.ReadToEndAsync(ct);
+        var header = HttpContext.Request.Headers["X-Hub-Signature-256"];
+        if (!SignatureVerifier.MetaSecretVerifier(header, jsonBody,
+                cfg["WhatsApp:VerifyToken"]))
+        {
+            await SendErrorsAsync(400, ct);
+            return;
+        }
+
+        var doc = JsonDocument.Parse(jsonBody);
         var root = doc.RootElement;
 
         try
@@ -85,7 +94,9 @@ public class WhatsAppWebhookEndpoint(
             if (payeeMatch)
                 await bus.Publish(new ResolveQuickReplyCmd(correlationId, text), ct);
             else
+            {
                 await bus.Publish(new RawInboundMsgCmd(correlationId, phone, text, msgId), ct);
+            }
 
             await state.UpdateLastMessageAsync(session.SessionId, text);
             await SendOkAsync(ct);

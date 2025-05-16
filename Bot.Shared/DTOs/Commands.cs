@@ -46,9 +46,19 @@ public record MemoCmd(Guid CorrelationId, MemoPayload Payload);
 
 public record FeedbackCmd(Guid CorrelationId, FeedbackPayload Payload);
 
-public record PromptFullNameCmd(Guid CorrelationId);
+public class PromptFullNameCmd(Guid CorrelationId);
 
-public record PromptNinCmd(Guid CorrelationId);
+public class PromptNinCmd
+{
+    public Guid CorrelationId { get; set; }
+
+    public PromptNinCmd() {} // <- required if using object initializer
+
+    public PromptNinCmd(Guid correlationId)
+    {
+        CorrelationId = correlationId;
+    }
+}
 
 public record PromptBvnCmd(Guid CorrelationId);
 

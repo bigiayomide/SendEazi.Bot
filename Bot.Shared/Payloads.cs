@@ -31,6 +31,9 @@ public record FeedbackPayload(int Rating, string Comment);
 
 public record SignupPayload(string FullName, string Phone, string NIN, string BVN);
 
+public record GrettingPayload(string message);
+public record UnknownPayload(string Message);
+
 // UX
 public enum NudgeType
 {
@@ -41,5 +44,7 @@ public enum NudgeType
     InvalidBvn,
     ServiceDown,
     InvalidNin,
-    WaitingOnMandate
+    WaitingOnMandate,
+    Greeting,
+    Unknown
 }

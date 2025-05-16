@@ -1,5 +1,7 @@
 using System.Security.Cryptography;
 using System.Text;
+using Bot.Infrastructure.Configuration;
+using Microsoft.Extensions.Options;
 
 namespace Bot.Core.Services;
 
@@ -10,9 +12,9 @@ public interface IEncryptionService
     string Sha256(string input);
 }
 
-public class EncryptionService(string base64Key) : IEncryptionService
+public class EncryptionService(IOptions<AppSettings> settings) : IEncryptionService
 {
-    private readonly byte[] _key = Convert.FromBase64String(base64Key); // 32-byte AES key
+    private readonly byte[] _key = Convert.FromBase64String(settings.Value.EncryptionBase64Key);
 
     public string Encrypt(string plaintext)
     {

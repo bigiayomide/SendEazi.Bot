@@ -14,42 +14,28 @@ public interface INotificationService
     Task SendBudgetAlertAsync(Guid userId, BudgetAlert alert);
 }
 
-public class NotificationService : INotificationService
+public class NotificationService(
+    IUserService userService,
+    ITemplateRenderingService templateService,
+    IWhatsAppService whatsApp,
+    ISmsBackupService smsBackup,
+    ILogger<NotificationService> logger)
+    : INotificationService
 {
-    private readonly ILogger<NotificationService> _logger;
-    private readonly ISmsBackupService _smsBackup;
-    private readonly ITemplateRenderingService _templateService;
-    private readonly IUserService _userService;
-    private readonly IWhatsAppService _whatsApp;
-
-    public NotificationService(
-        IUserService userService,
-        ITemplateRenderingService templateService,
-        IWhatsAppService whatsApp,
-        ISmsBackupService smsBackup,
-        ILogger<NotificationService> logger)
-    {
-        _userService = userService;
-        _templateService = templateService;
-        _whatsApp = whatsApp;
-        _smsBackup = smsBackup;
-        _logger = logger;
-    }
-
     public async Task SendBudgetAlertAsync(Guid userId, BudgetAlert alert)
     {
         // 1) Lookup user to get phone number
-        var user = await _userService.GetByIdAsync(userId);
+        var user = await userService.GetByIdAsync(userId);
         if (user == null)
         {
-            _logger.LogWarning("Cannot send alert: user {UserId} not found", userId);
+            logger.LogWarning("Cannot send alert: user {UserId} not found", userId);
             return;
         }
 
         var phone = user.PhoneNumber;
 
         // 2) Render the message via your templating service
-        var message = await _templateService.RenderAsync("BudgetAlert", new
+        var message = await templateService.RenderAsync("BudgetAlert", new
         {
             alert.Category,
             alert.Spent,
@@ -59,22 +45,22 @@ public class NotificationService : INotificationService
         // 3) Try sending over WhatsApp
         try
         {
-            await _whatsApp.SendTextMessageAsync(phone, message);
-            _logger.LogInformation("Sent budget alert via WhatsApp to {Phone}", phone);
+            await whatsApp.SendTextMessageAsync(phone, message);
+            logger.LogInformation("Sent budget alert via WhatsApp to {Phone}", phone);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "WhatsApp send failed for {Phone}, falling back to SMS", phone);
+            logger.LogError(ex, "WhatsApp send failed for {Phone}, falling back to SMS", phone);
 
             // 4) Fallback to SMS
             try
             {
-                await _smsBackup.SendSmsAsync(phone, message);
-                _logger.LogInformation("Sent budget alert via SMS to {Phone}", phone);
+                await smsBackup.SendSmsAsync(phone, message);
+                logger.LogInformation("Sent budget alert via SMS to {Phone}", phone);
             }
             catch (Exception smsEx)
             {
-                _logger.LogError(smsEx, "SMS send also failed for {Phone}", phone);
+                logger.LogError(smsEx, "SMS send also failed for {Phone}", phone);
             }
         }
     }

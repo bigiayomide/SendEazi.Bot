@@ -9,15 +9,19 @@
     <ItemGroup>
         <PackageReference Include="Azure.AI.OpenAI" Version="2.1.0"/>
         <PackageReference Include="Cronos" Version="0.10.0"/>
-        <PackageReference Include="FastEndpoints" Version="6.0.0"/>
-        <PackageReference Include="MassTransit" Version="8.4.0"/>
-        <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="9.0.0"/>
-        <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="9.0.4"/>
-        <PackageReference Include="Microsoft.Extensions.ApiDescription.Server" Version="9.0.4">
+        <PackageReference Include="FastEndpoints" Version="6.1.0" />
+        <PackageReference Include="MassTransit" Version="8.4.1" />
+        <PackageReference Include="MassTransit.SqlTransport.PostgreSQL" Version="8.4.1" />
+        <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="9.0.5" />
+        <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="9.0.5">
+          <PrivateAssets>all</PrivateAssets>
+          <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+        </PackageReference>
+        <PackageReference Include="Microsoft.Extensions.ApiDescription.Server" Version="9.0.5">
             <PrivateAssets>all</PrivateAssets>
             <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
         </PackageReference>
-        <PackageReference Include="Microsoft.Extensions.Caching.StackExchangeRedis" Version="9.0.2"/>
+        <PackageReference Include="Microsoft.Extensions.Caching.StackExchangeRedis" Version="9.0.5" />
         <PackageReference Include="Quartz" Version="3.14.0"/>
         <PackageReference Include="Quartz.AspNetCore" Version="3.14.0"/>
         <PackageReference Include="Quartz.Extensions.DependencyInjection" Version="3.14.0"/>
@@ -33,6 +37,18 @@
         <ProjectReference Include="..\Bot.Core\Bot.Core.csproj"/>
         <ProjectReference Include="..\Bot.Infrastructure\Bot.Infrastructure.csproj"/>
         <ProjectReference Include="..\Bot.Shared\Bot.Shared.csproj"/>
+    </ItemGroup>
+
+    <ItemGroup>
+      <None Update="Prompts\ConfirmationPrompt.txt">
+        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      </None>
+      <None Update="Prompts\FallbackPrompt.txt">
+        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      </None>
+      <None Update="Prompts\IntentExtractionPrompt.txt">
+        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      </None>
     </ItemGroup>
 
 </Project>

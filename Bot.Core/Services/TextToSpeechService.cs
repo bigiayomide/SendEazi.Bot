@@ -1,5 +1,7 @@
+using Bot.Infrastructure.Configuration;
 using Microsoft.CognitiveServices.Speech;
 using Microsoft.Extensions.Caching.Memory;
+using Microsoft.Extensions.Options;
 
 namespace Bot.Core.Services;
 
@@ -16,7 +18,7 @@ public class VoicePicker
     private const string FallbackVoice = "en-US-JennyNeural";
     private readonly IReadOnlyList<VoiceInfo> _voices;
 
-    public VoicePicker(IEnumerable<VoiceInfo> voices)
+    public VoicePicker(IEnumerable<VoiceInfo>? voices)
     {
         if (voices == null) throw new ArgumentNullException(nameof(voices));
         _voices = voices.ToList();
@@ -47,17 +49,17 @@ public class TextToSpeechService : ITextToSpeechService
     private readonly VoicePicker _picker;
     private readonly SpeechConfig _speechConfig;
 
-    public TextToSpeechService(string subscriptionKey, string region, IMemoryCache cache)
+    public TextToSpeechService(IMemoryCache cache, IOptions<TextToSpeechOptions> options)
     {
-        if (string.IsNullOrWhiteSpace(subscriptionKey))
-            throw new ArgumentNullException(nameof(subscriptionKey));
-        if (string.IsNullOrWhiteSpace(region))
-            throw new ArgumentNullException(nameof(region));
+        if (string.IsNullOrWhiteSpace(options.Value.SubscriptionKey))
+            throw new ArgumentNullException(nameof(options.Value.SubscriptionKey));
+        if (string.IsNullOrWhiteSpace(options.Value.Region))
+            throw new ArgumentNullException(nameof(options.Value.Region));
 
-        _speechConfig = SpeechConfig.FromSubscription(subscriptionKey, region);
+        _speechConfig = SpeechConfig.FromSubscription(options.Value.SubscriptionKey, options.Value.Region);
 
         // Load and cache the voices list on first use
-        if (!cache.TryGetValue("voices_list", out IReadOnlyList<VoiceInfo> voices))
+        if (!cache.TryGetValue("voices_list", out IReadOnlyList<VoiceInfo>? voices))
         {
             using var tempSynthesizer = new SpeechSynthesizer(_speechConfig, null);
             var result = tempSynthesizer.GetVoicesAsync().GetAwaiter().GetResult(); // sync for startup

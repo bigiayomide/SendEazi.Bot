@@ -1,220 +1,203 @@
-// File: Bot.Core.StateMachine/BotStateMachine.cs
-
 using System.Text.Json;
 using Bot.Core.Services;
 using Bot.Shared;
 using Bot.Shared.Models;
 using MassTransit;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace Bot.Core.StateMachine;
 
 public class BotStateMachine : MassTransitStateMachine<BotState>
 {
-    private readonly Event<BalanceSent> _balSent = null!;
-    private readonly Event<BankLinkFailed> _bankBad = null!;
-    private readonly Event<BankLinkSucceeded> _bankOk = null!;
-    private readonly Event<BillPayFailed> _billBad = null!;
-    private readonly Event<BillPaid> _billOk = null!;
-    private readonly Event<BvnRejected> _bvnBad = null!;
-    private readonly Event<BvnProvided> _bvnEvt = null!;
-    private readonly Event<BvnVerified> _bvnOk = null!;
-    private readonly Event<BudgetAlertTriggered> _goalAlert = null!;
-
-    /*────────── Events ─────────*/
-    private readonly Event<UserIntentDetected> _intentEvt = null!;
-    private readonly Event<KycRejected> _kycBad = null!;
-    private readonly Event<KycApproved> _kycOk = null!;
-    private readonly Event<MandateReadyToDebit> _mandateReadyEvt = null!;
-    private readonly Event<FullNameProvided> _nameEvt = null!;
-    private readonly Event<NinRejected> _ninBad = null!;
-    private readonly Event<NinProvided> _ninEvt = null!;
-    private readonly Event<NinVerified> _ninOk = null!;
-    private readonly Event<PinInvalid> _pinBad = null!;
-    private readonly Event<PinValidated> _pinOk = null!;
-    private readonly Event<PinSetupFailed> _pinSetBad = null!;
-    private readonly Event<PinSet> _pinSetEvt = null!;
-    private readonly Event<RecurringFailed> _recBad = null!;
-    private readonly Event<RecurringCancelled> _recCancel = null!;
-    private readonly Event<RecurringExecuted> _recExec = null!;
-    private readonly Event<SignupFailed> _signBad = null!;
-    private readonly Event<SignupSucceeded> _signOk = null!;
-    private readonly Event<TransferFailed> _txBad = null!;
-    private readonly Event<TransferCompleted> _txOk = null!;
+    public Event<BalanceSent> BalSent { get; private set; } = null!;
+    public Event<BankLinkFailed> BankBad { get; private set; } = null!;
+    public Event<BankLinkSucceeded> BankOk { get; private set; } = null!;
+    public Event<BillPayFailed> BillBad { get; private set; } = null!;
+    public Event<BillPaid> BillOk { get; private set; } = null!;
+    public Event<BvnRejected> BvnBad { get; private set; } = null!;
+    public Event<BvnProvided> BvnEvt { get; private set; } = null!;
+    public Event<BvnVerified> BvnOk { get; private set; } = null!;
+    public Event<BudgetAlertTriggered> GoalAlert { get; private set; } = null!;
+    public Event<UserIntentDetected> IntentEvt { get; private set; } = null!;
+    public Event<KycRejected> KycBad { get; private set; } = null!;
+    public Event<KycApproved> KycOk { get; private set; } = null!;
+    public Event<MandateReadyToDebit> MandateReadyEvt { get; private set; } = null!;
+    public Event<FullNameProvided> NameEvt { get; private set; } = null!;
+    public Event<NinRejected> NinBad { get; private set; } = null!;
+    public Event<NinProvided> NinEvt { get; private set; } = null!;
+    public Event<NinVerified> NinOk { get; private set; } = null!;
+    public Event<PinInvalid> PinBad { get; private set; } = null!;
+    public Event<PinValidated> PinOk { get; private set; } = null!;
+    public Event<PinSetupFailed> PinSetBad { get; private set; } = null!;
+    public Event<PinSet> PinSetEvt { get; private set; } = null!;
+    public Event<RecurringFailed> RecBad { get; private set; } = null!;
+    public Event<RecurringCancelled> RecCancel { get; private set; } = null!;
+    public Event<RecurringExecuted> RecExec { get; private set; } = null!;
+    public Event<SignupFailed> SignBad { get; private set; } = null!;
+    public Event<SignupSucceeded> SignOk { get; private set; } = null!;
+    public Event<TransferFailed> TxBad { get; private set; } = null!;
+    public Event<TransferCompleted> TxOk { get; private set; } = null!;
 
     public BotStateMachine()
     {
         InstanceState(x => x.CurrentState);
 
-        /*────────── Event Correlations ─────────*/
-        Event(() => _intentEvt, x => x.CorrelateById(m => m.Message.CorrelationId));
-        Event(() => _nameEvt, x => x.CorrelateById(m => m.Message.CorrelationId));
-        Event(() => _ninEvt, x => x.CorrelateById(m => m.Message.CorrelationId));
-        Event(() => _ninOk, x => x.CorrelateById(m => m.Message.CorrelationId));
-        Event(() => _ninBad, x => x.CorrelateById(m => m.Message.CorrelationId));
-        Event(() => _bvnEvt, x => x.CorrelateById(m => m.Message.CorrelationId));
-        Event(() => _bvnOk, x => x.CorrelateById(m => m.Message.CorrelationId));
-        Event(() => _bvnBad, x => x.CorrelateById(m => m.Message.CorrelationId));
-        Event(() => _signOk, x => x.CorrelateById(m => m.Message.CorrelationId));
-        Event(() => _signBad, x => x.CorrelateById(m => m.Message.CorrelationId));
-        Event(() => _kycOk, x => x.CorrelateById(m => m.Message.CorrelationId));
-        Event(() => _kycBad, x => x.CorrelateById(m => m.Message.CorrelationId));
-        Event(() => _bankOk, x => x.CorrelateById(m => m.Message.CorrelationId));
-        Event(() => _bankBad, x => x.CorrelateById(m => m.Message.CorrelationId));
-        Event(() => _pinSetEvt, x => x.CorrelateById(m => m.Message.CorrelationId));
-        Event(() => _pinSetBad, x => x.CorrelateById(m => m.Message.CorrelationId));
-        Event(() => _pinOk, x => x.CorrelateById(m => m.Message.CorrelationId));
-        Event(() => _pinBad, x => x.CorrelateById(m => m.Message.CorrelationId));
-        Event(() => _txOk, x => x.CorrelateById(m => m.Message.CorrelationId));
-        Event(() => _txBad, x => x.CorrelateById(m => m.Message.CorrelationId));
-        Event(() => _billOk, x => x.CorrelateById(m => m.Message.CorrelationId));
-        Event(() => _billBad, x => x.CorrelateById(m => m.Message.CorrelationId));
-        Event(() => _balSent, x => x.CorrelateById(m => m.Message.CorrelationId));
-        Event(() => _recExec, x => x.CorrelateById(m => m.Message.CorrelationId));
-        Event(() => _recBad, x => x.CorrelateById(m => m.Message.CorrelationId));
-        Event(() => _recCancel, x => x.CorrelateById(m => m.Message.CorrelationId));
-        Event(() => _goalAlert, x => x.CorrelateById(m => m.Message.CorrelationId));
-        Event(() => _mandateReadyEvt, x => x.CorrelateById(m => m.Message.CorrelationId));
+        // Event correlations
+        Event(() => IntentEvt, x => x.CorrelateById(m => m.Message.CorrelationId));
+        Event(() => NameEvt, x => x.CorrelateById(m => m.Message.CorrelationId));
+        Event(() => NinEvt, x => x.CorrelateById(m => m.Message.CorrelationId));
+        Event(() => NinOk, x => x.CorrelateById(m => m.Message.CorrelationId));
+        Event(() => NinBad, x => x.CorrelateById(m => m.Message.CorrelationId));
+        Event(() => BvnEvt, x => x.CorrelateById(m => m.Message.CorrelationId));
+        Event(() => BvnOk, x => x.CorrelateById(m => m.Message.CorrelationId));
+        Event(() => BvnBad, x => x.CorrelateById(m => m.Message.CorrelationId));
+        Event(() => SignOk, x => x.CorrelateById(m => m.Message.CorrelationId));
+        Event(() => SignBad, x => x.CorrelateById(m => m.Message.CorrelationId));
+        Event(() => KycOk, x => x.CorrelateById(m => m.Message.CorrelationId));
+        Event(() => KycBad, x => x.CorrelateById(m => m.Message.CorrelationId));
+        Event(() => BankOk, x => x.CorrelateById(m => m.Message.CorrelationId));
+        Event(() => BankBad, x => x.CorrelateById(m => m.Message.CorrelationId));
+        Event(() => PinSetEvt, x => x.CorrelateById(m => m.Message.CorrelationId));
+        Event(() => PinSetBad, x => x.CorrelateById(m => m.Message.CorrelationId));
+        Event(() => PinOk, x => x.CorrelateById(m => m.Message.CorrelationId));
+        Event(() => PinBad, x => x.CorrelateById(m => m.Message.CorrelationId));
+        Event(() => TxOk, x => x.CorrelateById(m => m.Message.CorrelationId));
+        Event(() => TxBad, x => x.CorrelateById(m => m.Message.CorrelationId));
+        Event(() => BillOk, x => x.CorrelateById(m => m.Message.CorrelationId));
+        Event(() => BillBad, x => x.CorrelateById(m => m.Message.CorrelationId));
+        Event(() => BalSent, x => x.CorrelateById(m => m.Message.CorrelationId));
+        Event(() => RecExec, x => x.CorrelateById(m => m.Message.CorrelationId));
+        Event(() => RecBad, x => x.CorrelateById(m => m.Message.CorrelationId));
+        Event(() => RecCancel, x => x.CorrelateById(m => m.Message.CorrelationId));
+        Event(() => GoalAlert, x => x.CorrelateById(m => m.Message.CorrelationId));
+        Event(() => MandateReadyEvt, x => x.CorrelateById(m => m.Message.CorrelationId));
 
-        /*────────── Onboarding Flow ─────────*/
+        // Onboarding Flow
         Initially(
-            When(_intentEvt, i => i.Message.Intent == "signup")
-                .TransitionTo(AskFullName)
+            When(IntentEvt, ctx => ctx.Message.Intent == "signup")
                 .ThenAsync(SetState("AskFullName"))
-                .PublishAsync(c => c.Init<PromptFullNameCmd>(new { c.Saga.CorrelationId }))
+                .PublishAsync(ctx => Task.FromResult(new PromptFullNameCmd(ctx.Saga.CorrelationId)))
+                .TransitionTo(AskFullName)
         );
 
         During(AskFullName,
-            When(_nameEvt)
-                .Then(c => c.Saga.TempName = c.Message.FullName)
-                .TransitionTo(AskNin)
+            When(NameEvt)
+                .Then(ctx => ctx.Saga.TempName = ctx.Message.FullName)
                 .ThenAsync(SetState("AskNin"))
-                .PublishAsync(c => c.Init<PromptNinCmd>(new { c.Saga.CorrelationId }))
+                .PublishAsync(ctx => Task.FromResult(new PromptNinCmd(ctx.Saga.CorrelationId)))
+                .TransitionTo(AskNin)
         );
 
         During(AskNin,
-            When(_ninEvt)
-                .Then(c => c.Saga.TempNIN = c.Message.NIN)
-                .TransitionTo(NinValidating)
+            When(NinEvt)
+                .Then(ctx => ctx.Saga.TempNIN = ctx.Message.NIN)
                 .ThenAsync(SetState("NinValidating"))
-                .PublishAsync(c => c.Init<ValidateNinCmd>(new { c.Saga.CorrelationId, c.Message.NIN }))
+                .PublishAsync(ctx => Task.FromResult(new ValidateNinCmd(ctx.Saga.CorrelationId, ctx.Message.NIN)))
+                .TransitionTo(NinValidating)
         );
 
         During(NinValidating,
-            When(_ninOk)
-                .TransitionTo(AskBvn)
+            When(NinOk)
                 .ThenAsync(SetState("AskBvn"))
-                .PublishAsync(c => c.Init<PromptBvnCmd>(new { c.Saga.CorrelationId })),
-            When(_ninBad)
-                .PublishAsync(c => c.Init<NudgeCmd>(new
-                {
-                    c.Saga.CorrelationId,
-                    NudgeType = NudgeType.InvalidNin,
-                    Text = "❌ That NIN didn’t validate. Please re-enter your 11-digit NIN."
-                }))
-                .TransitionTo(AskNin)
+                .PublishAsync(ctx => Task.FromResult(new PromptBvnCmd(ctx.Saga.CorrelationId)))
+                .TransitionTo(AskBvn),
+            When(NinBad)
                 .ThenAsync(SetState("AskNin"))
+                .PublishAsync(ctx => Task.FromResult(new NudgeCmd(ctx.Saga.CorrelationId, NudgeType.InvalidNin, "❌ That NIN didn’t validate. Please re-enter your 11-digit NIN.")))
+                .TransitionTo(AskNin)
         );
 
         During(AskBvn,
-            When(_bvnEvt)
-                .Then(c => c.Saga.TempBVN = c.Message.BVN)
-                .TransitionTo(BvnValidating)
+            When(BvnEvt)
+                .Then(ctx => ctx.Saga.TempBVN = ctx.Message.BVN)
                 .ThenAsync(SetState("BvnValidating"))
-                .PublishAsync(c => c.Init<ValidateBvnCmd>(new { c.Saga.CorrelationId, c.Message.BVN }))
+                .PublishAsync(ctx => Task.FromResult(new ValidateBvnCmd(ctx.Saga.CorrelationId, ctx.Message.BVN)))
+                .TransitionTo(BvnValidating)
         );
 
         During(BvnValidating,
-            When(_bvnOk)
-                .TransitionTo(AwaitingKyc)
-                .PublishAsync(c => c.Init<SignupCmd>(new
-                {
-                    c.Saga.CorrelationId,
-                    Payload = new SignupPayload(
-                        c.Saga.TempName!,
-                        c.Saga.PhoneNumber!,
-                        c.Saga.TempNIN!,
-                        c.Saga.TempBVN!)
-                })),
-            When(_bvnBad)
-                .PublishAsync(c => c.Init<NudgeCmd>(new
-                {
-                    c.Saga.CorrelationId,
-                    NudgeType = NudgeType.InvalidBvn,
-                    Text = "❌ That BVN didn’t validate. Please re-enter your 11-digit BVN."
-                }))
-                .TransitionTo(AskBvn)
+            When(BvnOk)
+                .ThenAsync(SetState("AwaitingKyc"))
+                .PublishAsync(ctx => Task.FromResult(new SignupCmd(ctx.Saga.CorrelationId, new SignupPayload(
+                    ctx.Saga.TempName!,
+                    ctx.Saga.PhoneNumber!,
+                    ctx.Saga.TempNIN!,
+                    ctx.Saga.TempBVN!
+                ))))
+                .TransitionTo(AwaitingKyc),
+            When(BvnBad)
                 .ThenAsync(SetState("AskBvn"))
+                .PublishAsync(ctx => Task.FromResult(new NudgeCmd(ctx.Saga.CorrelationId, NudgeType.InvalidBvn, "❌ That BVN didn’t validate. Please re-enter your 11-digit BVN.")))
+                .TransitionTo(AskBvn)
         );
 
         During(AwaitingKyc,
-            When(_signOk)
-                .PublishAsync(c => c.Init<KycCmd>(new { c.Saga.CorrelationId }))
+            When(SignOk)
+                .ThenAsync(SetState("AwaitingBankLink"))
+                .PublishAsync(ctx => Task.FromResult(new KycCmd(ctx.Saga.CorrelationId)))
                 .TransitionTo(AwaitingBankLink),
-            When(_signBad)
-                .Then(c => c.Saga.LastFailureReason = "SignupFailed")
+            When(SignBad)
+                .Then(ctx => ctx.Saga.LastFailureReason = "SignupFailed")
                 .Finalize()
         );
 
         During(AwaitingBankLink,
-            When(_mandateReadyEvt)
-                .TransitionTo(AwaitingPinSetup)
+            When(MandateReadyEvt)
                 .ThenAsync(SetState("AwaitingPinSetup"))
+                .TransitionTo(AwaitingPinSetup)
         );
 
         During(AwaitingPinSetup,
-            When(_bankOk)
-                .PublishAsync(c => c.Init<PinSetupCmd>(new { c.Saga.CorrelationId, PinHash = string.Empty }))
+            When(BankOk)
+                .ThenAsync(SetState("AwaitingPinValidate"))
+                .PublishAsync(ctx => Task.FromResult(new PinSetupCmd(ctx.Saga.CorrelationId, string.Empty, string.Empty)))
                 .TransitionTo(AwaitingPinValidate),
-            When(_bankBad)
-                .Then(c => c.Saga.LastFailureReason = "BankLinkFailed")
+            When(BankBad)
+                .Then(ctx => ctx.Saga.LastFailureReason = "BankLinkFailed")
         );
 
         During(AwaitingPinValidate,
-            When(_pinBad)
-                .PublishAsync(c => c.Init<NudgeCmd>(new
-                {
-                    c.Saga.CorrelationId,
-                    NudgeType = NudgeType.BadPin,
-                    Text = "⛔ Incorrect PIN. Please try again."
-                }))
+            When(PinBad)
+                .PublishAsync(ctx => Task.FromResult(new NudgeCmd(ctx.Saga.CorrelationId, NudgeType.BadPin, "⛔ Incorrect PIN. Please try again."))),
+            When(PinSetEvt)
+                .ThenAsync(SetState("Ready"))
+                .TransitionTo(Ready)
         );
 
-        /*────────── Sensitive Intent → PIN Confirmation Flow ─────────*/
         During(Ready,
-            When(_intentEvt, ctx => ctx.Message.Intent is "transfer" or "billpay")
+            When(IntentEvt, ctx => ctx.Message.Intent is "transfer" or "billpay")
                 .ThenAsync(async ctx =>
                 {
                     ctx.Saga.PendingIntentType = ctx.Message.Intent;
                     ctx.Saga.PendingIntentPayload = JsonSerializer.Serialize(ctx.Message);
-
-                    await ctx.Publish(new NudgeCmd(ctx.Saga.CorrelationId, NudgeType.BadPin,
-                        "🔐 Please enter your PIN to proceed."));
+                    await ctx.Publish(new NudgeCmd(ctx.Saga.CorrelationId, NudgeType.BadPin, "🔐 Please enter your PIN to proceed."));
                 })
-                .TransitionTo(AwaitingPinValidate)
                 .ThenAsync(SetState("AwaitingPinValidate"))
+                .TransitionTo(AwaitingPinValidate)
         );
 
         During(AwaitingPinValidate,
-            When(_pinOk)
+            When(PinOk)
                 .ThenAsync(async ctx =>
                 {
                     var intent = ctx.Saga.PendingIntentType;
                     var payloadJson = ctx.Saga.PendingIntentPayload;
-
+                   
                     switch (intent)
                     {
                         case "transfer":
                             var transfer = JsonSerializer.Deserialize<UserIntentDetected>(payloadJson!)!;
-                            var refGen = ctx.GetPayload<IReferenceGenerator>();
+                            var refGen = ctx.TryGetPayload<IServiceProvider>(out var sp)
+                                ? sp.GetService<IReferenceGenerator>()
+                                : null;
+
+
                             var reference = refGen.GenerateTransferRef(
                                 ctx.Saga.CorrelationId,
                                 transfer.TransferPayload!.ToAccount,
-                                transfer.TransferPayload.BankCode);
-
-                            await ctx.Publish(new TransferCmd(
-                                ctx.Saga.CorrelationId,
-                                transfer.TransferPayload,
-                                reference));
+                                transfer.TransferPayload.BankCode
+                            );
+                            await ctx.Publish(new TransferCmd(ctx.Saga.CorrelationId, transfer.TransferPayload, reference));
                             break;
 
                         case "billpay":
@@ -226,27 +209,46 @@ public class BotStateMachine : MassTransitStateMachine<BotState>
                     ctx.Saga.PendingIntentType = null;
                     ctx.Saga.PendingIntentPayload = null;
                 })
+                .ThenAsync(SetState("Ready"))
                 .TransitionTo(Ready)
+        );
+
+        // Side-effect only: greeting/unknown handled everywhere
+        DuringAny(
+            When(IntentEvt, ctx => ctx.Message.Intent == "greeting")
+                .ThenAsync(ctx => ctx.Publish(new NudgeCmd(ctx.Saga.CorrelationId, NudgeType.Greeting, "👋 Hello! Let me know what you'd like to do next."))),
+            When(IntentEvt, ctx => ctx.Message.Intent == "unknown")
+                .ThenAsync(ctx => ctx.Publish(new NudgeCmd(ctx.Saga.CorrelationId, NudgeType.Unknown, "❓ I didn’t get that. Try saying 'check balance' or 'send money'.")))
         );
 
         SetCompletedWhenFinalized();
     }
 
-    /*────────── States ─────────*/
-    private State AskFullName { get; } = null!;
-    private State AskNin { get; } = null!;
-    private State NinValidating { get; } = null!;
-    private State AskBvn { get; } = null!;
-    private State BvnValidating { get; } = null!;
-    private State AwaitingKyc { get; } = null!;
-    private State AwaitingBankLink { get; } = null!;
-    private State AwaitingPinSetup { get; } = null!;
-    private State AwaitingPinValidate { get; } = null!;
-    private State Ready { get; } = null!;
-    private State AwaitingTransferPin { get; } = null!;
+    // States
+    public State AskFullName { get; } = null!;
+    public State AskNin { get; } = null!;
+    public State NinValidating { get; } = null!;
+    public State AskBvn { get; } = null!;
+    public State BvnValidating { get; } = null!;
+    public State AwaitingKyc { get; } = null!;
+    public State AwaitingBankLink { get; } = null!;
+    public State AwaitingPinSetup { get; } = null!;
+    public State AwaitingPinValidate { get; } = null!;
+    public State Ready { get; } = null!;
 
     private static Func<BehaviorContext<BotState>, Task> SetState(string s)
     {
-        return ctx => ctx.GetPayload<IConversationStateService>().SetStateAsync(ctx.Saga.SessionId, s);
+        return async ctx =>
+        {
+            var service = ctx.TryGetPayload<IServiceProvider>(out var sp)
+                ? sp.GetService<IConversationStateService>()
+                : null;
+
+            if (service == null)
+                throw new InvalidOperationException("IConversationStateService could not be resolved.");
+
+            await service.SetStateAsync(ctx.Saga.SessionId, s);
+        };
     }
+
 }

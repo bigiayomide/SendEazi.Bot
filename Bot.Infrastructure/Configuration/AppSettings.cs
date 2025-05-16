@@ -6,6 +6,7 @@ public class AppSettings
     public SmsSettings Sms { get; set; } = new();
     public bool EphemeralModeEnabled { get; set; }
     public string RedisConnectionString { get; set; } = null!;
+    public string EncryptionBase64Key { get; set; } = null!;
     public BillPaySettings BillPay { get; set; } = new();
 }
 
