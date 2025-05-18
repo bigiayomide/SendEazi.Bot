@@ -34,7 +34,7 @@ public record UserIntentDetected(
     MemoPayload? MemoPayload = null,
     FeedbackPayload? FeedbackPayload = null,
     SignupPayload? SignupPayload = null,
-    GrettingPayload? GreetingPayload = null,
+    GreetingPayload? GreetingPayload = null,
     UnknownPayload UnknownPayload = null,
     string? PhoneNumber = null);
 
