@@ -38,7 +38,7 @@ public class BudgetAlertScheduler(
         if (_scheduler != null)
         {
             await _scheduler.Shutdown(cancellationToken);
-            logger.LogInformation("⏹️ BudgetAlertScheduler stopped");
+            logger.LogInformation("⏹ BudgetAlertScheduler stopped");
         }
     }
 }
