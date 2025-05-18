@@ -134,6 +134,9 @@ public static class ServiceCollectionExtensions
             x.AddConsumersFromNamespaceContaining<NudgeCmdConsumer>();
             x.AddConsumersFromNamespaceContaining<BalanceCmdConsumer>();
             x.AddConsumersFromNamespaceContaining<StartMandateSetupCmdConsumer>();
+            x.AddConsumersFromNamespaceContaining<PromptFullNameCmdConsumer>();
+            x.AddConsumersFromNamespaceContaining<PromptNinCmdConsumer>();
+            x.AddConsumersFromNamespaceContaining<PromptBvnCmdConsumer>();
             x.AddSagaStateMachine<BotStateMachine, BotState, BotStateMachineDefinition>();
             x.AddSagaStateMachine<DirectDebitMandateStateMachine, DirectDebitMandateState,
                 DirectDebitMandateMachineDefinition>();
