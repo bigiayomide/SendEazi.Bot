@@ -64,7 +64,7 @@ public class TextToSpeechService : ITextToSpeechService
             using var tempSynthesizer = new SpeechSynthesizer(_speechConfig, null);
             var result = tempSynthesizer.GetVoicesAsync().GetAwaiter().GetResult(); // sync for startup
             voices = result
-                .Voices; // SynthesisVoicesResult.Voices is List<VoiceInfo> :contentReference[oaicite:2]{index=2}
+                .Voices; // SynthesisVoicesResult.Voices is List<VoiceInfo>
             cache.Set("voices_list", voices, TimeSpan.FromDays(1));
         }
 
@@ -88,7 +88,7 @@ public class TextToSpeechService : ITextToSpeechService
         using var synthesizer = new SpeechSynthesizer(_speechConfig, null);
         var result =
             await synthesizer
-                .SpeakTextAsync(text); // returns SpeechSynthesisResult :contentReference[oaicite:3]{index=3}
+                .SpeakTextAsync(text); // returns SpeechSynthesisResult
         if (result.Reason != ResultReason.SynthesizingAudioCompleted)
             throw new InvalidOperationException($"TTS failed ({result.Reason}): {result}");
 
