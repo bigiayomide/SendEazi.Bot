@@ -3,7 +3,7 @@ using Bot.Shared.Enums;
 namespace Bot.Shared.DTOs;
 
 /* onboarding */
-public record SignupSucceeded(Guid CorrelationId);
+public record SignupSucceeded(Guid CorrelationId, Guid UserId);
 
 public record SignupFailed(Guid CorrelationId, string Reason);
 

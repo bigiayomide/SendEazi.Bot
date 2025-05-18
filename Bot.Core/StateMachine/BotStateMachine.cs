@@ -93,6 +93,12 @@ public class BotStateMachine : MassTransitStateMachine<BotState>
                 .PublishAsync(ctx => Task.FromResult(new PromptFullNameCmd(ctx.Saga.CorrelationId)))
                 .TransitionTo(AskFullName),
 
+            When(IntentEvt, ctx => ctx.Message.Intent is Shared.Enums.IntentType.Transfer or Shared.Enums.IntentType.BillPay)
+                .ThenAsync(ctx => ctx.Publish(new NudgeCmd(ctx.Saga.CorrelationId, NudgeType.SignupRequired, ctx.Saga.PhoneNumber, "📝 Please sign up before making transactions.")))
+                .ThenAsync(SetState("AskFullName"))
+                .PublishAsync(ctx => Task.FromResult(new PromptFullNameCmd(ctx.Saga.CorrelationId)))
+                .TransitionTo(AskFullName),
+            
             When(IntentEvt, ctx => ctx.Message.Intent == Bot.Shared.Enums.IntentType.Greeting)
                 .ThenAsync(ctx => ctx.Publish(new NudgeCmd(ctx.Saga.CorrelationId, NudgeType.Greeting, ctx.Saga.PhoneNumber, "👋 Hello! Let me know what you'd like to do next."))),
 
@@ -153,7 +159,15 @@ public class BotStateMachine : MassTransitStateMachine<BotState>
 
         During(AwaitingKyc,
             When(SignOk)
-                .ThenAsync(SetState("AwaitingBankLink"))
+                .ThenAsync(async ctx =>
+                {
+                    await SetState("AwaitingBankLink")(ctx);
+                    var svc = ctx.TryGetPayload<IServiceProvider>(out var sp)
+                        ? sp.GetService<IConversationStateService>()
+                        : null;
+                    if (svc != null)
+                        await svc.SetUserAsync(ctx.Saga.SessionId, ctx.Message.UserId);
+                })
                 .PublishAsync(ctx => Task.FromResult(new KycCmd(ctx.Saga.CorrelationId)))
                 .TransitionTo(AwaitingBankLink),
             When(SignBad)

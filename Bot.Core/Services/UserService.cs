@@ -10,7 +10,7 @@ namespace Bot.Core.Services;
 
 public interface IUserService
 {
-    Task<User> CreateAsync(SignupPayload payload);
+    Task<User> CreateAsync(Guid userId, SignupPayload payload);
     Task<User?> GetByIdAsync(Guid userId);
     Task SetPersonalityAsync(Guid userId, PersonalityEnum personality);
     Task<bool> RunKycAsync(Guid userId);
@@ -18,11 +18,11 @@ public interface IUserService
 
 public class UserService(ApplicationDbContext db) : IUserService
 {
-    public async Task<User> CreateAsync(SignupPayload p)
+    public async Task<User> CreateAsync(Guid userId, SignupPayload p)
     {
         var user = new User
         {
-            Id = Guid.NewGuid(),
+            Id = userId,
             FullName = p.FullName,
             PhoneNumber = p.Phone,
             NINEnc = Encrypt(p.NIN),

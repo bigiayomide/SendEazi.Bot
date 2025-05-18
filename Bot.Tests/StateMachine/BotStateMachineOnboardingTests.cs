@@ -159,7 +159,7 @@ public class BotStateMachineOnboardingTests(ITestOutputHelper testOutputHelper) 
         await _harness.Bus.Publish(new NinVerified(id, "12345678901"));
         await _harness.Bus.Publish(new BvnProvided(id, "12345678901"));
         await _harness.Bus.Publish(new BvnVerified(id, "12345678901"));
-        await _harness.Bus.Publish(new SignupSucceeded(id));
+        await _harness.Bus.Publish(new SignupSucceeded(id, Guid.NewGuid()));
 
         var instance = await _sagaHarness.Exists(id, x => x.AwaitingBankLink, TimeSpan.FromSeconds(5));
         Assert.NotNull(instance);
@@ -178,7 +178,7 @@ public class BotStateMachineOnboardingTests(ITestOutputHelper testOutputHelper) 
         await _harness.Bus.Publish(new NinVerified(id, "12345678901"));
         await _harness.Bus.Publish(new BvnProvided(id, "12345678901"));
         await _harness.Bus.Publish(new BvnVerified(id, "12345678901"));
-        await _harness.Bus.Publish(new SignupSucceeded(id));
+        await _harness.Bus.Publish(new SignupSucceeded(id, Guid.NewGuid()));
         await _harness.Bus.Publish(new KycRejected(id, "Failed validation"));
 
         var instance = await _sagaHarness.Exists(id, x => x.Final, TimeSpan.FromSeconds(5));
@@ -216,7 +216,7 @@ public class BotStateMachineOnboardingTests(ITestOutputHelper testOutputHelper) 
         await _harness.Bus.Publish(new NinVerified(id, "12345678901"));
         await _harness.Bus.Publish(new BvnProvided(id, "12345678901"));
         await _harness.Bus.Publish(new BvnVerified(id, "12345678901"));
-        await _harness.Bus.Publish(new SignupSucceeded(id));
+        await _harness.Bus.Publish(new SignupSucceeded(id, Guid.NewGuid()));
         await _harness.Bus.Publish(new KycApproved(id));
 
         var instance = await _sagaHarness.Exists(id, x => x.AwaitingBankLink, TimeSpan.FromSeconds(5));
@@ -267,7 +267,7 @@ public class BotStateMachineOnboardingTests(ITestOutputHelper testOutputHelper) 
         await _harness.Bus.Publish(new NinVerified(id, "12345678901"));
         await _harness.Bus.Publish(new BvnProvided(id, "12345678901"));
         await _harness.Bus.Publish(new BvnVerified(id, "12345678901"));
-        await _harness.Bus.Publish(new SignupSucceeded(id));
+        await _harness.Bus.Publish(new SignupSucceeded(id, Guid.NewGuid()));
         await _harness.Bus.Publish(new KycApproved(id));
         await _harness.Bus.Publish(new MandateReadyToDebit(id, "mid", "Mono"));
         await _harness.Bus.Publish(new BankLinkSucceeded(id));

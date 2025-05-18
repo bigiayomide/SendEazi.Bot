@@ -10,6 +10,7 @@ public interface IConversationStateService
 {
     Task<ConversationSession> GetOrCreateSessionAsync(string phoneNumber);
     Task UpdateLastMessageAsync(Guid sessionId, string message);
+    Task SetUserAsync(Guid sessionId, Guid userId);
     Task SetStateAsync(Guid sessionId, string state);
     Task<string> GetStateAsync(Guid sessionId);
 }
@@ -83,6 +84,13 @@ public class ConversationStateService(
     {
         var key = SessionKey(sessionId);
         await _redis.HashSetAsync(key, nameof(ConversationSession.LastMessage), message);
+        await TouchAsync(sessionId);
+    }
+
+    public async Task SetUserAsync(Guid sessionId, Guid userId)
+    {
+        var key = SessionKey(sessionId);
+        await _redis.HashSetAsync(key, nameof(ConversationSession.UserId), userId.ToString());
         await TouchAsync(sessionId);
     }
 

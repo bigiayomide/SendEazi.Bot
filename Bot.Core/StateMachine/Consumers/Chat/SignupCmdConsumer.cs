@@ -10,10 +10,10 @@ public class SignupCmdConsumer(IUserService users) : IConsumer<SignupCmd>
     {
         try
         {
-            await users.CreateAsync(ctx.Message.Payload);
-            await ctx.Publish(new SignupSucceeded(ctx.Message.CorrelationId));
+            var user = await users.CreateAsync(ctx.Message.CorrelationId, ctx.Message.Payload);
+            await ctx.Publish(new SignupSucceeded(ctx.Message.CorrelationId, user.Id));
         }
-        catch (Exception e)
+        catch (Exception)
         {
             await ctx.Publish(new SignupFailed(ctx.Message.CorrelationId, "DuplicateOrInvalid"));
             throw;

@@ -22,7 +22,8 @@ public class NudgeService(ApplicationDbContext db) : INudgeService
         [NudgeType.BadPin] = "https://cdn.bot.ng/nudges/wrong-pin.png",
         [NudgeType.TransferFail] = "https://cdn.bot.ng/nudges/tx-failed.gif",
         [NudgeType.WaitingOnMandate] = "https://cdn.bot.ng/nudges/mandate-wait.gif",
-        [NudgeType.BudgetAlert] = "https://cdn.bot.ng/nudges/limit-near.png"
+        [NudgeType.BudgetAlert] = "https://cdn.bot.ng/nudges/limit-near.png",
+        [NudgeType.SignupRequired] = "https://cdn.bot.ng/nudges/signup-required.png"
     };
 
     private readonly Random _rng = new();
