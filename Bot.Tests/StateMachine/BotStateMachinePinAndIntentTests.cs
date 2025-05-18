@@ -71,7 +71,8 @@ public class BotStateMachinePinAndIntentTests(ITestOutputHelper testOutputHelper
         ));
 
         await _harness.Bus.Publish(new SignupSucceeded(
-            sagaId
+            sagaId,
+            Guid.NewGuid()
         ));
 
         await _harness.Bus.Publish(new MandateReadyToDebit(

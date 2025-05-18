@@ -46,5 +46,6 @@ public enum NudgeType
     InvalidNin,
     WaitingOnMandate,
     Greeting,
-    Unknown
+    Unknown,
+    SignupRequired
 }

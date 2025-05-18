@@ -12,6 +12,12 @@ public class FakeConversationStateService : IConversationStateService
         return Task.CompletedTask;
     }
 
+    public Task SetUserAsync(Guid sessionId, Guid userId)
+    {
+        Console.WriteLine($"[Fake] Set user {userId} for session {sessionId}");
+        return Task.CompletedTask;
+    }
+
     public Task<ConversationSession> GetOrCreateSessionAsync(string phone)
         => Task.FromResult(new ConversationSession
         {

@@ -85,7 +85,16 @@ public class WhatsAppWebhookEndpoint(
             };
 
             var session = await state.GetOrCreateSessionAsync(phone);
-            var correlationId = session.UserId != Guid.Empty ? session.UserId : Guid.NewGuid();
+            Guid correlationId;
+            if (session.UserId != Guid.Empty)
+            {
+                correlationId = session.UserId;
+            }
+            else
+            {
+                correlationId = Guid.NewGuid();
+                await state.SetUserAsync(session.SessionId, correlationId);
+            }
 
             var payeeMatch = await db.Payees.AnyAsync(p =>
                 p.UserId == correlationId &&
