@@ -1,4 +1,5 @@
 using Bot.Core.Services;
+using Bot.Shared.DTOs;
 using MassTransit;
 
 namespace Bot.Core.StateMachine.Consumers.UX;
@@ -7,10 +8,9 @@ public class NudgeCmdConsumer(IWhatsAppService wa, INudgeService nudges, IUserSe
 {
     public async Task Consume(ConsumeContext<NudgeCmd> ctx)
     {
-        var user = await users.GetByIdAsync(ctx.Message.CorrelationId);
         var media = nudges.SelectAsset(ctx.Message.NudgeType);
-        await wa.SendMediaAsync(user!.PhoneNumber, media);
+        await wa.SendTextMessageAsync(ctx.Message.PhoneNumber, ctx.Message.Text);
 
-        await ctx.Publish(new NudgeSent(user.Id, ctx.Message.NudgeType));
+        await ctx.Publish(new NudgeSent(ctx.Message.CorrelationId, ctx.Message.NudgeType));
     }
 }

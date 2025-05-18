@@ -2,6 +2,7 @@
 
 using System.Text.Json;
 using Bot.Shared;
+using Bot.Shared.DTOs;
 
 namespace Bot.Core.StateMachine.Mappers;
 

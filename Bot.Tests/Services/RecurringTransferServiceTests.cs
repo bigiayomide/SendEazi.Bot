@@ -1,6 +1,7 @@
 using Bot.Core.Services;
 using Bot.Core.StateMachine;
 using Bot.Infrastructure.Data;
+using Bot.Shared.DTOs;
 using Bot.Shared.Models;
 using FluentAssertions;
 using MassTransit;

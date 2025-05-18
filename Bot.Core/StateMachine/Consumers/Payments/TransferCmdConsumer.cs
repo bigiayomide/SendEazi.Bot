@@ -2,6 +2,7 @@
 
 using Bot.Core.Providers;
 using Bot.Infrastructure.Data;
+using Bot.Shared.DTOs;
 using Bot.Shared.Enums;
 using Bot.Shared.Models;
 using MassTransit;

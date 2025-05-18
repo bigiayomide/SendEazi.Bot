@@ -1,4 +1,5 @@
 using Bot.Infrastructure.Data;
+using Bot.Shared.DTOs;
 using MassTransit;
 
 namespace Bot.Core.StateMachine.Consumers.Payments;

@@ -8,6 +8,9 @@ using Bot.Core.Providers;
 using Bot.Core.Services;
 using Bot.Core.StateMachine;
 using Bot.Core.StateMachine.Consumers.Chat;
+using Bot.Core.StateMachine.Consumers.MandateSaga;
+using Bot.Core.StateMachine.Consumers.Payments;
+using Bot.Core.StateMachine.Consumers.UX;
 using Bot.Host.BackgroundJobs;
 using Bot.Infrastructure.Configuration;
 using Bot.Infrastructure.Data;
@@ -128,6 +131,9 @@ public static class ServiceCollectionExtensions
         services.AddMassTransit(x =>
         {
             x.AddConsumersFromNamespaceContaining<RawInboundMsgCmdConsumer>();
+            x.AddConsumersFromNamespaceContaining<NudgeCmdConsumer>();
+            x.AddConsumersFromNamespaceContaining<BalanceCmdConsumer>();
+            x.AddConsumersFromNamespaceContaining<StartMandateSetupCmdConsumer>();
             x.AddSagaStateMachine<BotStateMachine, BotState, BotStateMachineDefinition>();
             x.AddSagaStateMachine<DirectDebitMandateStateMachine, DirectDebitMandateState,
                 DirectDebitMandateMachineDefinition>();

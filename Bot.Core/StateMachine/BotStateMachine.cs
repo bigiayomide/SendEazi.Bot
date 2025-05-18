@@ -1,6 +1,7 @@
 using System.Text.Json;
 using Bot.Core.Services;
 using Bot.Shared;
+using Bot.Shared.DTOs;
 using Bot.Shared.Models;
 using MassTransit;
 using Microsoft.Extensions.DependencyInjection;
@@ -43,7 +44,20 @@ public class BotStateMachine : MassTransitStateMachine<BotState>
         InstanceState(x => x.CurrentState);
 
         // Event correlations
-        Event(() => IntentEvt, x => x.CorrelateById(m => m.Message.CorrelationId));
+        Event(() => IntentEvt, e =>
+        {
+            e.CorrelateBy((saga, context) => saga.PhoneNumber == context.Message.PhoneNumber);
+
+            e.InsertOnInitial = true;
+
+            e.SetSagaFactory(context => new BotState
+            {
+                CorrelationId = context.Message.CorrelationId,
+                SessionId = Guid.NewGuid(),
+                PhoneNumber = context.Message.PhoneNumber // Assign if available
+            });
+        });
+
         Event(() => NameEvt, x => x.CorrelateById(m => m.Message.CorrelationId));
         Event(() => NinEvt, x => x.CorrelateById(m => m.Message.CorrelationId));
         Event(() => NinOk, x => x.CorrelateById(m => m.Message.CorrelationId));
@@ -77,7 +91,13 @@ public class BotStateMachine : MassTransitStateMachine<BotState>
             When(IntentEvt, ctx => ctx.Message.Intent == "signup")
                 .ThenAsync(SetState("AskFullName"))
                 .PublishAsync(ctx => Task.FromResult(new PromptFullNameCmd(ctx.Saga.CorrelationId)))
-                .TransitionTo(AskFullName)
+                .TransitionTo(AskFullName),
+
+            When(IntentEvt, ctx => ctx.Message.Intent == "greeting")
+                .ThenAsync(ctx => ctx.Publish(new NudgeCmd(ctx.Saga.CorrelationId, NudgeType.Greeting, ctx.Saga.PhoneNumber, "👋 Hello! Let me know what you'd like to do next."))),
+
+            When(IntentEvt, ctx => ctx.Message.Intent == "unknown")
+                .ThenAsync(ctx => ctx.Publish(new NudgeCmd(ctx.Saga.CorrelationId, NudgeType.Unknown, ctx.Saga.PhoneNumber,"❓ I didn’t get that. Try saying 'check balance' or 'send money'.")))
         );
 
         During(AskFullName,
@@ -103,7 +123,7 @@ public class BotStateMachine : MassTransitStateMachine<BotState>
                 .TransitionTo(AskBvn),
             When(NinBad)
                 .ThenAsync(SetState("AskNin"))
-                .PublishAsync(ctx => Task.FromResult(new NudgeCmd(ctx.Saga.CorrelationId, NudgeType.InvalidNin, "❌ That NIN didn’t validate. Please re-enter your 11-digit NIN.")))
+                .PublishAsync(ctx => Task.FromResult(new NudgeCmd(ctx.Saga.CorrelationId, NudgeType.InvalidNin,  ctx.Saga.PhoneNumber, "❌ That NIN didn’t validate. Please re-enter your 11-digit NIN.")))
                 .TransitionTo(AskNin)
         );
 
@@ -127,7 +147,7 @@ public class BotStateMachine : MassTransitStateMachine<BotState>
                 .TransitionTo(AwaitingKyc),
             When(BvnBad)
                 .ThenAsync(SetState("AskBvn"))
-                .PublishAsync(ctx => Task.FromResult(new NudgeCmd(ctx.Saga.CorrelationId, NudgeType.InvalidBvn, "❌ That BVN didn’t validate. Please re-enter your 11-digit BVN.")))
+                .PublishAsync(ctx => Task.FromResult(new NudgeCmd(ctx.Saga.CorrelationId, NudgeType.InvalidBvn,  ctx.Saga.PhoneNumber, "❌ That BVN didn’t validate. Please re-enter your 11-digit BVN.")))
                 .TransitionTo(AskBvn)
         );
 
@@ -158,7 +178,7 @@ public class BotStateMachine : MassTransitStateMachine<BotState>
 
         During(AwaitingPinValidate,
             When(PinBad)
-                .PublishAsync(ctx => Task.FromResult(new NudgeCmd(ctx.Saga.CorrelationId, NudgeType.BadPin, "⛔ Incorrect PIN. Please try again."))),
+                .PublishAsync(ctx => Task.FromResult(new NudgeCmd(ctx.Saga.CorrelationId, NudgeType.BadPin,  ctx.Saga.PhoneNumber, "⛔ Incorrect PIN. Please try again."))),
             When(PinSetEvt)
                 .ThenAsync(SetState("Ready"))
                 .TransitionTo(Ready)
@@ -170,7 +190,7 @@ public class BotStateMachine : MassTransitStateMachine<BotState>
                 {
                     ctx.Saga.PendingIntentType = ctx.Message.Intent;
                     ctx.Saga.PendingIntentPayload = JsonSerializer.Serialize(ctx.Message);
-                    await ctx.Publish(new NudgeCmd(ctx.Saga.CorrelationId, NudgeType.BadPin, "🔐 Please enter your PIN to proceed."));
+                    await ctx.Publish(new NudgeCmd(ctx.Saga.CorrelationId, NudgeType.BadPin,  ctx.Saga.PhoneNumber, "🔐 Please enter your PIN to proceed."));
                 })
                 .ThenAsync(SetState("AwaitingPinValidate"))
                 .TransitionTo(AwaitingPinValidate)
@@ -182,7 +202,7 @@ public class BotStateMachine : MassTransitStateMachine<BotState>
                 {
                     var intent = ctx.Saga.PendingIntentType;
                     var payloadJson = ctx.Saga.PendingIntentPayload;
-                   
+                    
                     switch (intent)
                     {
                         case "transfer":
@@ -190,8 +210,8 @@ public class BotStateMachine : MassTransitStateMachine<BotState>
                             var refGen = ctx.TryGetPayload<IServiceProvider>(out var sp)
                                 ? sp.GetService<IReferenceGenerator>()
                                 : null;
-
-
+                    
+                    
                             var reference = refGen.GenerateTransferRef(
                                 ctx.Saga.CorrelationId,
                                 transfer.TransferPayload!.ToAccount,
@@ -199,13 +219,13 @@ public class BotStateMachine : MassTransitStateMachine<BotState>
                             );
                             await ctx.Publish(new TransferCmd(ctx.Saga.CorrelationId, transfer.TransferPayload, reference));
                             break;
-
+                    
                         case "billpay":
                             var bill = JsonSerializer.Deserialize<UserIntentDetected>(payloadJson!)!;
                             await ctx.Publish(new BillPayCmd(ctx.Saga.CorrelationId, bill.BillPayload!));
                             break;
                     }
-
+                    
                     ctx.Saga.PendingIntentType = null;
                     ctx.Saga.PendingIntentPayload = null;
                 })
@@ -216,9 +236,9 @@ public class BotStateMachine : MassTransitStateMachine<BotState>
         // Side-effect only: greeting/unknown handled everywhere
         DuringAny(
             When(IntentEvt, ctx => ctx.Message.Intent == "greeting")
-                .ThenAsync(ctx => ctx.Publish(new NudgeCmd(ctx.Saga.CorrelationId, NudgeType.Greeting, "👋 Hello! Let me know what you'd like to do next."))),
+                .ThenAsync(ctx => ctx.Publish(new NudgeCmd(ctx.Saga.CorrelationId, NudgeType.Greeting,  ctx.Saga.PhoneNumber, "👋 Hello! Let me know what you'd like to do next."))),
             When(IntentEvt, ctx => ctx.Message.Intent == "unknown")
-                .ThenAsync(ctx => ctx.Publish(new NudgeCmd(ctx.Saga.CorrelationId, NudgeType.Unknown, "❓ I didn’t get that. Try saying 'check balance' or 'send money'.")))
+                .ThenAsync(ctx => ctx.Publish(new NudgeCmd(ctx.Saga.CorrelationId, NudgeType.Unknown,  ctx.Saga.PhoneNumber, "❓ I didn’t get that. Try saying 'check balance' or 'send money'.")))
         );
 
         SetCompletedWhenFinalized();
@@ -241,7 +261,7 @@ public class BotStateMachine : MassTransitStateMachine<BotState>
         return async ctx =>
         {
             var service = ctx.TryGetPayload<IServiceProvider>(out var sp)
-                ? sp.GetService<IConversationStateService>()
+                ? sp.GetRequiredService<IConversationStateService>()
                 : null;
 
             if (service == null)

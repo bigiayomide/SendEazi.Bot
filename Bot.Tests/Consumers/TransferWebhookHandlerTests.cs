@@ -2,6 +2,7 @@ using Bot.Core.Services;
 using Bot.Core.StateMachine;
 using Bot.Core.StateMachine.Consumers.Payments;
 using Bot.Infrastructure.Data;
+using Bot.Shared.DTOs;
 using Bot.Shared.Enums;
 using Bot.Shared.Models;
 using FluentAssertions;

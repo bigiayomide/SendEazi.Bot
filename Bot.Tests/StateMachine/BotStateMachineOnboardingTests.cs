@@ -1,6 +1,7 @@
 using Bot.Core.Services;
 using Bot.Core.StateMachine;
 using Bot.Shared;
+using Bot.Shared.DTOs;
 using Bot.Shared.Models;
 using MassTransit;
 using MassTransit.Testing;

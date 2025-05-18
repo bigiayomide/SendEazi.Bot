@@ -3,6 +3,7 @@ using Azure.AI.OpenAI;
 using Bot.Core.StateMachine;
 using Bot.Infrastructure.Configuration;
 using Bot.Shared;
+using Bot.Shared.DTOs;
 using Microsoft.Extensions.Options;
 using OpenAI;
 using OpenAI.Chat;
@@ -11,7 +12,7 @@ namespace Bot.Core.Services;
 
 public interface INlpService
 {
-    Task<UserIntentDetected> DetectIntentAsync(Guid correlationId, string rawText);
+    Task<UserIntentDetected> DetectIntentAsync(Guid correlationId, string rawText, string phoneNumber);
 }
 
 public interface IChatClientWrapper
@@ -36,7 +37,7 @@ public class NlpService(
 {
     private readonly PromptSettings _prompts = opts.Value;
 
-    public async Task<UserIntentDetected> DetectIntentAsync(Guid correlationId, string rawText)
+    public async Task<UserIntentDetected> DetectIntentAsync(Guid correlationId, string rawText, string phoneNumber)
     {
         try
         {
@@ -97,7 +98,8 @@ public class NlpService(
                     root.GetProperty("nin").GetString()!,
                     root.GetProperty("bvn").GetString()!) : null,
                 intent == "greeting" ? null : null,
-                intent == "unknown" ? null : null
+                intent == "unknown" ? null : null,
+                phoneNumber
             );
 
             return result;

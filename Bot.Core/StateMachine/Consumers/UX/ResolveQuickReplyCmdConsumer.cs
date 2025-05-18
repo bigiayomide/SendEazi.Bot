@@ -1,5 +1,6 @@
 using Bot.Infrastructure.Data;
 using Bot.Shared;
+using Bot.Shared.DTOs;
 using MassTransit;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
@@ -27,7 +28,8 @@ public class ResolveQuickReplyCmdConsumer(
         if (match is null)
         {
             log.LogInformation("No matching payee found for label '{Label}'", ctx.Message.Label);
-            await bus.Publish(new NudgeCmd(userId, NudgeType.TransferFail,
+            //TODO: fix
+            await bus.Publish(new NudgeCmd(userId, NudgeType.TransferFail, "+2349043844316", 
                 $"❌ I couldn’t find anyone named \"{ctx.Message.Label}\" in your payees."));
             return;
         }

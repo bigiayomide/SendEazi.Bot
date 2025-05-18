@@ -1,4 +1,5 @@
 using Bot.Infrastructure.Data;
+using Bot.Shared.DTOs;
 using Bot.Shared.Models;
 using MassTransit;
 using Microsoft.EntityFrameworkCore;

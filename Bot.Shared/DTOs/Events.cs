@@ -1,7 +1,6 @@
-using Bot.Shared;
 using Bot.Shared.Enums;
 
-namespace Bot.Core.StateMachine;
+namespace Bot.Shared.DTOs;
 
 /* onboarding */
 public record SignupSucceeded(Guid CorrelationId);
@@ -36,7 +35,8 @@ public record UserIntentDetected(
     FeedbackPayload? FeedbackPayload = null,
     SignupPayload? SignupPayload = null,
     GrettingPayload? GreetingPayload = null,
-    UnknownPayload UnknownPayload = null);
+    UnknownPayload UnknownPayload = null,
+    string? PhoneNumber = null);
 
 /* money */
 public record TransferCompleted(Guid CorrelationId, string Reference);
@@ -104,8 +104,8 @@ public record BvnRejected(Guid CorrelationId, string Reason);
 
 public record MandateReadyToDebit(Guid CorrelationId, string MandateId, string Provider);
 
-public record VoiceMessageTranscribed(Guid CorrelationId, string Text, string Language);
+public record VoiceMessageTranscribed(Guid CorrelationId, string Text, string Language, string PhoneNumber);
 
-public record OcrResultAvailable(Guid CorrelationId, string ExtractedText);
+public record OcrResultAvailable(Guid CorrelationId, string ExtractedText, string PhoneNumber);
 
 public record VoiceReplyReady(Guid CorrelationId, Stream AudioStream);

@@ -3,6 +3,7 @@ using Bot.Core.Helpers;
 using Bot.Core.Services;
 using Bot.Core.StateMachine;
 using Bot.Infrastructure.Data;
+using Bot.Shared.DTOs;
 using FastEndpoints;
 using MassTransit;
 using Microsoft.EntityFrameworkCore;

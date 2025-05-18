@@ -1,6 +1,7 @@
 using Bot.Core.Helpers;
 using Bot.Core.Services;
 using Bot.Infrastructure.Data;
+using Bot.Shared.DTOs;
 using MassTransit;
 
 namespace Bot.Core.StateMachine.Consumers.UX;

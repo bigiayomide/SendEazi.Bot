@@ -1,5 +1,5 @@
 using System.Text.RegularExpressions;
-using Bot.Core.StateMachine;
+using Bot.Shared.DTOs;
 
 namespace Bot.Shared.Models;
 

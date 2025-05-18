@@ -1,4 +1,5 @@
 using Bot.Core.Services;
+using Bot.Shared.DTOs;
 using MassTransit;
 using Microsoft.Extensions.Logging;
 
@@ -29,7 +30,7 @@ public  class RawInboundMsgCmdConsumer(IConversationStateService session, ILogge
                 await ctx.Publish(new PinSetupCmd(correlationId, text, ctx.Message.MessageId));
                 break;
             default:
-                await ctx.Publish(new VoiceMessageTranscribed(correlationId, text, "auto"));
+                await ctx.Publish(new VoiceMessageTranscribed(correlationId, text, "auto", ctx.Message.Phone));
                 break;
         }
 

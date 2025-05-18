@@ -1,6 +1,7 @@
 using Bot.Core.Services;
 using Bot.Core.StateMachine;
 using Bot.Core.StateMachine.Consumers.UX;
+using Bot.Shared.DTOs;
 using Bot.Shared.Enums;
 using Bot.Shared.Models;
 using Bot.Tests.TestUtilities;

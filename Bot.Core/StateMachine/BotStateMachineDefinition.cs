@@ -23,7 +23,7 @@ public class BotStateMachineDefinition
         IRegistrationContext context)
     {
         base.ConfigureSaga(endpointConfigurator, sagaConfigurator, context);
-        endpointConfigurator.UseEntityFrameworkOutbox<ApplicationDbContext>(context);
-        endpointConfigurator.UseMessageRetry(r => r.Interval(3, TimeSpan.FromSeconds(2)));
+        // endpointConfigurator.UseEntityFrameworkOutbox<ApplicationDbContext>(context);
+        // endpointConfigurator.UseMessageRetry(r => r.Interval(3, TimeSpan.FromSeconds(2)));
     }
 }

@@ -1,7 +1,6 @@
-using Bot.Shared;
 using Bot.Shared.Enums;
 
-namespace Bot.Core.StateMachine;
+namespace Bot.Shared.DTOs;
 
 // inbound & NLP
 public record RawInboundMsgCmd(Guid CorrelationId, string Phone, string Text, string MessageId);
@@ -35,7 +34,7 @@ public record RecurringCancelCmd(Guid CorrelationId, Guid RecurringId);
 // ux / extras
 public record RewardCmd(Guid CorrelationId, RewardTypeEnum RewardType);
 
-public record NudgeCmd(Guid CorrelationId, NudgeType NudgeType, string? Text = null);
+public record NudgeCmd(Guid CorrelationId, NudgeType NudgeType, string PhoneNumber, string? Text = null);
 
 public record QuickReplyCmd(Guid CorrelationId, string TemplateName, string[] Args);
 
@@ -73,9 +72,9 @@ public record StartMandateSetupCmd(
     string BVN,
     decimal MaxAmount = 200_000_000);
 
-public record VoiceMessageCmd(Guid CorrelationId, string FileUrl, string LanguageHint = "auto");
+public record VoiceMessageCmd(Guid CorrelationId, string FileUrl, string PhoneNumber, string LanguageHint = "auto");
 
-public record ImageUploadedCmd(Guid CorrelationId, string FileUrl, string? Hint = null);
+public record ImageUploadedCmd(Guid CorrelationId, string FileUrl, string PhoneNumber, string? Hint = null);
 
 public record RespondWithVoiceCmd(Guid CorrelationId, string Text, string? Language = "en");
 

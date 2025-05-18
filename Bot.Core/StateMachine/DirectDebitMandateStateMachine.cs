@@ -1,5 +1,6 @@
 using Bot.Core.Providers;
 using Bot.Core.Services;
+using Bot.Shared.DTOs;
 using Bot.Shared.Models;
 using MassTransit;
 
