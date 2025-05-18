@@ -56,7 +56,7 @@ public class NlpServiceTests : IDisposable
         var service = CreateService(json);
         var result = await service.DetectIntentAsync(Guid.NewGuid(), "transfer rent", phoneNumber:"+2349043844315");
 
-        result.Intent.Should().Be("transfer");
+        result.Intent.Should().Be(Bot.Shared.Enums.IntentType.Transfer);
         result.TransferPayload!.ToAccount.Should().Be("1234567890");
         result.TransferPayload.BankCode.Should().Be("058");
         result.TransferPayload.Amount.Should().Be(1000);
@@ -78,7 +78,7 @@ public class NlpServiceTests : IDisposable
         var service = CreateService(json);
         var result = await service.DetectIntentAsync(Guid.NewGuid(), "pay DSTV", "+2349043844315");
 
-        result.Intent.Should().Be("billpay");
+        result.Intent.Should().Be(Bot.Shared.Enums.IntentType.BillPay);
         result.BillPayload!.BillerCode.Should().Be("DSTV");
         result.BillPayload.CustomerRef.Should().Be("00112233");
         result.BillPayload.Amount.Should().Be(5500);
@@ -100,7 +100,7 @@ public class NlpServiceTests : IDisposable
         var service = CreateService(json);
         var result = await service.DetectIntentAsync(Guid.NewGuid(), "sign me up", "+2349043844315");
 
-        result.Intent.Should().Be("signup");
+        result.Intent.Should().Be(Bot.Shared.Enums.IntentType.Signup);
         result.SignupPayload!.FullName.Should().Be("Jane Doe");
         result.SignupPayload.Phone.Should().Be("+2348123456789");
         result.SignupPayload.NIN.Should().Be("12345678901");
@@ -121,7 +121,7 @@ public class NlpServiceTests : IDisposable
         var service = CreateService(json);
         var result = await service.DetectIntentAsync(Guid.NewGuid(), "feedback", "+2349043844315");
 
-        result.Intent.Should().Be("feedback");
+        result.Intent.Should().Be(Bot.Shared.Enums.IntentType.Feedback);
         result.FeedbackPayload!.Rating.Should().Be(5);
         result.FeedbackPayload.Comment.Should().Be("Great job");
     }
@@ -141,7 +141,7 @@ public class NlpServiceTests : IDisposable
         var service = CreateService(json);
         var result = await service.DetectIntentAsync(Guid.NewGuid(), "add memo", "+2349043844315");
 
-        result.Intent.Should().Be("memo");
+        result.Intent.Should().Be(Bot.Shared.Enums.IntentType.Memo);
         result.MemoPayload!.TransactionId.Should().Be(txId);
         result.MemoPayload.MemoText.Should().Be("January rent");
     }
@@ -154,7 +154,7 @@ public class NlpServiceTests : IDisposable
         var service = CreateService(json);
         var result = await service.DetectIntentAsync(Guid.NewGuid(), "bla bla", "+2349043844315");
 
-        result.Intent.Should().Be("unknown");
+        result.Intent.Should().Be(Bot.Shared.Enums.IntentType.Unknown);
     }
 
     [Fact]

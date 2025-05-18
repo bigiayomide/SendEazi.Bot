@@ -88,15 +88,15 @@ public class BotStateMachine : MassTransitStateMachine<BotState>
 
         // Onboarding Flow
         Initially(
-            When(IntentEvt, ctx => ctx.Message.Intent == "signup")
+            When(IntentEvt, ctx => ctx.Message.Intent == Bot.Shared.Enums.IntentType.Signup)
                 .ThenAsync(SetState("AskFullName"))
                 .PublishAsync(ctx => Task.FromResult(new PromptFullNameCmd(ctx.Saga.CorrelationId)))
                 .TransitionTo(AskFullName),
 
-            When(IntentEvt, ctx => ctx.Message.Intent == "greeting")
+            When(IntentEvt, ctx => ctx.Message.Intent == Bot.Shared.Enums.IntentType.Greeting)
                 .ThenAsync(ctx => ctx.Publish(new NudgeCmd(ctx.Saga.CorrelationId, NudgeType.Greeting, ctx.Saga.PhoneNumber, "👋 Hello! Let me know what you'd like to do next."))),
 
-            When(IntentEvt, ctx => ctx.Message.Intent == "unknown")
+            When(IntentEvt, ctx => ctx.Message.Intent == Bot.Shared.Enums.IntentType.Unknown)
                 .ThenAsync(ctx => ctx.Publish(new NudgeCmd(ctx.Saga.CorrelationId, NudgeType.Unknown, ctx.Saga.PhoneNumber,"❓ I didn’t get that. Try saying 'check balance' or 'send money'.")))
         );
 
@@ -185,7 +185,7 @@ public class BotStateMachine : MassTransitStateMachine<BotState>
         );
 
         During(Ready,
-            When(IntentEvt, ctx => ctx.Message.Intent is "transfer" or "billpay")
+            When(IntentEvt, ctx => ctx.Message.Intent is Bot.Shared.Enums.IntentType.Transfer or Bot.Shared.Enums.IntentType.BillPay)
                 .ThenAsync(async ctx =>
                 {
                     ctx.Saga.PendingIntentType = ctx.Message.Intent;
@@ -205,7 +205,7 @@ public class BotStateMachine : MassTransitStateMachine<BotState>
                     
                     switch (intent)
                     {
-                        case "transfer":
+                        case Bot.Shared.Enums.IntentType.Transfer:
                             var transfer = JsonSerializer.Deserialize<UserIntentDetected>(payloadJson!)!;
                             var refGen = ctx.TryGetPayload<IServiceProvider>(out var sp)
                                 ? sp.GetService<IReferenceGenerator>()
@@ -220,7 +220,7 @@ public class BotStateMachine : MassTransitStateMachine<BotState>
                             await ctx.Publish(new TransferCmd(ctx.Saga.CorrelationId, transfer.TransferPayload, reference));
                             break;
                     
-                        case "billpay":
+                        case Bot.Shared.Enums.IntentType.BillPay:
                             var bill = JsonSerializer.Deserialize<UserIntentDetected>(payloadJson!)!;
                             await ctx.Publish(new BillPayCmd(ctx.Saga.CorrelationId, bill.BillPayload!));
                             break;
@@ -235,9 +235,9 @@ public class BotStateMachine : MassTransitStateMachine<BotState>
 
         // Side-effect only: greeting/unknown handled everywhere
         DuringAny(
-            When(IntentEvt, ctx => ctx.Message.Intent == "greeting")
+            When(IntentEvt, ctx => ctx.Message.Intent == Bot.Shared.Enums.IntentType.Greeting)
                 .ThenAsync(ctx => ctx.Publish(new NudgeCmd(ctx.Saga.CorrelationId, NudgeType.Greeting,  ctx.Saga.PhoneNumber, "👋 Hello! Let me know what you'd like to do next."))),
-            When(IntentEvt, ctx => ctx.Message.Intent == "unknown")
+            When(IntentEvt, ctx => ctx.Message.Intent == Bot.Shared.Enums.IntentType.Unknown)
                 .ThenAsync(ctx => ctx.Publish(new NudgeCmd(ctx.Saga.CorrelationId, NudgeType.Unknown,  ctx.Saga.PhoneNumber, "❓ I didn’t get that. Try saying 'check balance' or 'send money'.")))
         );
 
