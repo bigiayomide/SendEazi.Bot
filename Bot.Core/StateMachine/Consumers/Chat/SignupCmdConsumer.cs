@@ -10,7 +10,7 @@ public class SignupCmdConsumer(IUserService users) : IConsumer<SignupCmd>
     {
         try
         {
-            await users.CreateAsync(ctx.Message.Payload);
+            await users.CreateAsync(ctx.Message.CorrelationId, ctx.Message.Payload);
             await ctx.Publish(new SignupSucceeded(ctx.Message.CorrelationId));
         }
         catch (Exception e)
