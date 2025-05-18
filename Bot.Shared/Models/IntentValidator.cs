@@ -9,15 +9,15 @@ public static class IntentValidator
     {
         return intent.Intent switch
         {
-            "transfer" => ValidateTransfer(intent.TransferPayload!),
-            "memo" => ValidateMemo(intent.MemoPayload!),
-            "billpay" => ValidateBill(intent.BillPayload!),
-            "signup" => ValidateSignup(intent.SignupPayload!),
-            "set_goal" => ValidateGoal(intent.GoalPayload!),
-            "schedule_recurring" => ValidateRecurring(intent.RecurringPayload!),
-            "feedback" => ValidateFeedback(intent.FeedbackPayload!),
-            "greeting" => ValidateGreeting(),
-            "unknown" => ValidateUnknown(),
+            Enums.IntentType.Transfer => ValidateTransfer(intent.TransferPayload!),
+            Enums.IntentType.Memo => ValidateMemo(intent.MemoPayload!),
+            Enums.IntentType.BillPay => ValidateBill(intent.BillPayload!),
+            Enums.IntentType.Signup => ValidateSignup(intent.SignupPayload!),
+            Enums.IntentType.SetGoal => ValidateGoal(intent.GoalPayload!),
+            Enums.IntentType.ScheduleRecurring => ValidateRecurring(intent.RecurringPayload!),
+            Enums.IntentType.Feedback => ValidateFeedback(intent.FeedbackPayload!),
+            Enums.IntentType.Greeting => ValidateGreeting(),
+            Enums.IntentType.Unknown => ValidateUnknown(),
             _ => ValidationResult.Fail("❌ Unknown intent provided.")
         };
     }

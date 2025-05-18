@@ -52,11 +52,11 @@ public class BotStateMachineRecurringTests : IAsyncLifetime
         var recurringId = Guid.NewGuid();
         var payload = new TransferPayload("111111", "001", 12345, "Test");
 
-        await _harness.Bus.Publish(new UserIntentDetected(id, "transfer", TransferPayload: payload));
+        await _harness.Bus.Publish(new UserIntentDetected(id, Bot.Shared.Enums.IntentType.Transfer, TransferPayload: payload));
 
         var saga = _sagaHarness.Sagas.Contains(id);
-        saga.PendingIntentType = "transfer";
-        saga.PendingIntentPayload = JsonSerializer.Serialize(new UserIntentDetected(id, "transfer", TransferPayload: payload));
+        saga.PendingIntentType = Bot.Shared.Enums.IntentType.Transfer;
+        saga.PendingIntentPayload = JsonSerializer.Serialize(new UserIntentDetected(id, Bot.Shared.Enums.IntentType.Transfer, TransferPayload: payload));
 
         await _harness.Bus.Publish(new RecurringExecuted(id, recurringId));
 
@@ -69,7 +69,7 @@ public class BotStateMachineRecurringTests : IAsyncLifetime
     public async Task REC_02_Should_Stay_In_Current_State_On_RecurringFailed()
     {
         var id = NewId.NextGuid();
-        await _harness.Bus.Publish(new UserIntentDetected(id, "transfer"));
+        await _harness.Bus.Publish(new UserIntentDetected(id, Bot.Shared.Enums.IntentType.Transfer));
 
         await _harness.Bus.Publish(new RecurringFailed(id, "failed"));
 
@@ -83,11 +83,11 @@ public class BotStateMachineRecurringTests : IAsyncLifetime
     {
         var id = NewId.NextGuid();
         var recurringId = Guid.NewGuid();
-        await _harness.Bus.Publish(new UserIntentDetected(id, "transfer"));
+        await _harness.Bus.Publish(new UserIntentDetected(id, Bot.Shared.Enums.IntentType.Transfer));
         var payload = new TransferPayload("111111", "001", 12345, "Test");
         var saga = _sagaHarness.Sagas.Contains(id);
-        saga.PendingIntentType = "transfer";
-        saga.PendingIntentPayload = JsonSerializer.Serialize(new UserIntentDetected(id, "transfer", payload));
+        saga.PendingIntentType = Bot.Shared.Enums.IntentType.Transfer;
+        saga.PendingIntentPayload = JsonSerializer.Serialize(new UserIntentDetected(id, Bot.Shared.Enums.IntentType.Transfer, payload));
 
         await _harness.Bus.Publish(new RecurringCancelled(id, recurringId));
 
@@ -113,11 +113,11 @@ public class BotStateMachineRecurringTests : IAsyncLifetime
         
         var payload = new TransferPayload("111111", "001", 12345, "Test");
 
-        await _harness.Bus.Publish(new UserIntentDetected(id, "transfer", TransferPayload: payload));
+        await _harness.Bus.Publish(new UserIntentDetected(id, Bot.Shared.Enums.IntentType.Transfer, TransferPayload: payload));
         var saga = _sagaHarness.Sagas.Contains(id);
 
-        saga.PendingIntentType = "transfer";
-        saga.PendingIntentPayload = JsonSerializer.Serialize(new UserIntentDetected(id, "transfer", TransferPayload: payload));
+        saga.PendingIntentType = Bot.Shared.Enums.IntentType.Transfer;
+        saga.PendingIntentPayload = JsonSerializer.Serialize(new UserIntentDetected(id, Bot.Shared.Enums.IntentType.Transfer, TransferPayload: payload));
 
         await _harness.Bus.Publish(new RecurringExecuted(id, Guid.NewGuid()));
         await _harness.Bus.Publish(new RecurringExecuted(id, Guid.NewGuid()));

@@ -26,7 +26,7 @@ public record PinInvalid(Guid CorrelationId, string Reason);
 /* intent */
 public record UserIntentDetected(
     Guid CorrelationId,
-    string Intent,
+    Bot.Shared.Enums.IntentType Intent,
     TransferPayload? TransferPayload = null,
     BillPayload? BillPayload = null,
     GoalPayload? GoalPayload = null,

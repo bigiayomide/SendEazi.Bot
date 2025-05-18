@@ -62,8 +62,8 @@ namespace Bot.Infrastructure.SagaMigrations
                     b.Property<string>("PendingIntentPayload")
                         .HasColumnType("text");
 
-                    b.Property<string>("PendingIntentType")
-                        .HasColumnType("text");
+                    b.Property<int?>("PendingIntentType")
+                        .HasColumnType("integer");
 
                     b.Property<string>("PhoneNumber")
                         .HasColumnType("text");

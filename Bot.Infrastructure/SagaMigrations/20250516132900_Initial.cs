@@ -34,7 +34,7 @@ namespace Bot.Infrastructure.SagaMigrations
                     TempBVN = table.Column<string>(type: "text", nullable: true),
                     SessionId = table.Column<Guid>(type: "uuid", nullable: false),
                     PhoneNumber = table.Column<string>(type: "text", nullable: true),
-                    PendingIntentType = table.Column<string>(type: "text", nullable: true),
+                    PendingIntentType = table.Column<int>(type: "integer", nullable: true),
                     PendingIntentPayload = table.Column<string>(type: "text", nullable: true),
                     RowVersion = table.Column<byte[]>(type: "bytea", rowVersion: true, nullable: true)
                 },

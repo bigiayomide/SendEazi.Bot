@@ -28,7 +28,7 @@ public class BotState : SagaStateMachineInstance
     public Guid SessionId { get; set; }
     public string? PhoneNumber { get; set; }
 
-    public string? PendingIntentType { get; set; } // "transfer", "billpay", etc.
+    public Bot.Shared.Enums.IntentType? PendingIntentType { get; set; } // Transfer, BillPay, etc.
     public string? PendingIntentPayload { get; set; } // JSON string of full UserIntentDetected
 
     public byte[]? RowVersion { get; set; }

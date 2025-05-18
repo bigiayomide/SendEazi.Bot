@@ -48,7 +48,7 @@ public class BotStateMachineOnboardingTests(ITestOutputHelper testOutputHelper) 
     public async Task ONB_01_Should_Transition_To_AskFullName_On_Signup_Intent()
     {
         var id = NewId.NextGuid();
-        await _harness.Bus.Publish(new UserIntentDetected(id, "signup"));
+        await _harness.Bus.Publish(new UserIntentDetected(id, Bot.Shared.Enums.IntentType.Signup));
 
         var instance = await _sagaHarness.Exists(id, x => x.AskFullName, TimeSpan.FromSeconds(5));
 
@@ -59,7 +59,7 @@ public class BotStateMachineOnboardingTests(ITestOutputHelper testOutputHelper) 
     public async Task ONB_02_Should_Transition_To_AskNin_On_FullNameProvided()
     {
         var id = NewId.NextGuid();
-        await _harness.Bus.Publish(new UserIntentDetected(id, "signup"));
+        await _harness.Bus.Publish(new UserIntentDetected(id, Bot.Shared.Enums.IntentType.Signup));
         await _harness.Bus.Publish(new FullNameProvided(id, "Jane Doe"));
 
         var instance = await _sagaHarness.Exists(id, x => x.AskNin, TimeSpan.FromSeconds(5));
@@ -72,7 +72,7 @@ public class BotStateMachineOnboardingTests(ITestOutputHelper testOutputHelper) 
     public async Task ONB_03_Should_Transition_To_AskBvn_On_NinVerified()
     {
         var id = NewId.NextGuid();
-        await _harness.Bus.Publish(new UserIntentDetected(id, "signup"));
+        await _harness.Bus.Publish(new UserIntentDetected(id, Bot.Shared.Enums.IntentType.Signup));
         await _harness.Bus.Publish(new FullNameProvided(id, "John Smith"));
         await _harness.Bus.Publish(new NinProvided(id, "12345678901"));
         await _harness.Bus.Publish(new NinVerified(id, "12345678901"));
@@ -87,7 +87,7 @@ public class BotStateMachineOnboardingTests(ITestOutputHelper testOutputHelper) 
     public async Task ONB_04_Should_Return_To_AskNin_On_NinRejected()
     {
         var id = NewId.NextGuid();
-        await _harness.Bus.Publish(new UserIntentDetected(id, "signup"));
+        await _harness.Bus.Publish(new UserIntentDetected(id, Bot.Shared.Enums.IntentType.Signup));
         await _harness.Bus.Publish(new FullNameProvided(id, "Test User"));
         await _harness.Bus.Publish(new NinProvided(id, "invalid"));
         await _harness.Bus.Publish(new NinRejected(id, "NIN is invalid"));
@@ -100,7 +100,7 @@ public class BotStateMachineOnboardingTests(ITestOutputHelper testOutputHelper) 
     public async Task ONB_05_Should_Transition_To_AwaitingKyc_On_BvnVerified()
     {
         var id = NewId.NextGuid();
-        await _harness.Bus.Publish(new UserIntentDetected(id, "signup"));
+        await _harness.Bus.Publish(new UserIntentDetected(id, Bot.Shared.Enums.IntentType.Signup));
         await _harness.Bus.Publish(new FullNameProvided(id, "Test User"));
         await _harness.Bus.Publish(new NinProvided(id, "12345678901"));
         await _harness.Bus.Publish(new NinVerified(id, "12345678901"));
@@ -117,7 +117,7 @@ public class BotStateMachineOnboardingTests(ITestOutputHelper testOutputHelper) 
     public async Task ONB_06_Should_Finalize_On_SignupFailed()
     {
         var id = NewId.NextGuid();
-        await _harness.Bus.Publish(new UserIntentDetected(id, "signup"));
+        await _harness.Bus.Publish(new UserIntentDetected(id, Bot.Shared.Enums.IntentType.Signup));
         await _harness.Bus.Publish(new FullNameProvided(id, "Test User"));
         await _harness.Bus.Publish(new NinProvided(id, "12345678901"));
         await _harness.Bus.Publish(new NinVerified(id, "12345678901"));
@@ -133,7 +133,7 @@ public class BotStateMachineOnboardingTests(ITestOutputHelper testOutputHelper) 
     {
         var id = NewId.NextGuid();
 
-        await _harness.Bus.Publish(new UserIntentDetected(id, "signup"));
+        await _harness.Bus.Publish(new UserIntentDetected(id, Bot.Shared.Enums.IntentType.Signup));
         await _harness.Bus.Publish(new FullNameProvided(id, "Test User"));
         await _harness.Bus.Publish(new NinProvided(id, "12345678901"));
         await _harness.Bus.Publish(new NinVerified(id, "12345678901"));
@@ -153,7 +153,7 @@ public class BotStateMachineOnboardingTests(ITestOutputHelper testOutputHelper) 
     {
         var id = NewId.NextGuid();
 
-        await _harness.Bus.Publish(new UserIntentDetected(id, "signup"));
+        await _harness.Bus.Publish(new UserIntentDetected(id, Bot.Shared.Enums.IntentType.Signup));
         await _harness.Bus.Publish(new FullNameProvided(id, "Test User"));
         await _harness.Bus.Publish(new NinProvided(id, "12345678901"));
         await _harness.Bus.Publish(new NinVerified(id, "12345678901"));
@@ -172,7 +172,7 @@ public class BotStateMachineOnboardingTests(ITestOutputHelper testOutputHelper) 
     {
         var id = NewId.NextGuid();
 
-        await _harness.Bus.Publish(new UserIntentDetected(id, "signup"));
+        await _harness.Bus.Publish(new UserIntentDetected(id, Bot.Shared.Enums.IntentType.Signup));
         await _harness.Bus.Publish(new FullNameProvided(id, "Test User"));
         await _harness.Bus.Publish(new NinProvided(id, "12345678901"));
         await _harness.Bus.Publish(new NinVerified(id, "12345678901"));
@@ -190,7 +190,7 @@ public class BotStateMachineOnboardingTests(ITestOutputHelper testOutputHelper) 
     {
         var id = NewId.NextGuid();
 
-        await _harness.Bus.Publish(new UserIntentDetected(id, "signup"));
+        await _harness.Bus.Publish(new UserIntentDetected(id, Bot.Shared.Enums.IntentType.Signup));
         await _harness.Bus.Publish(new FullNameProvided(id, "Ayomide Fajobi"));
         await _harness.Bus.Publish(new NinProvided(id, "11223344556"));
         await _harness.Bus.Publish(new NinVerified(id, "11223344556"));
@@ -210,7 +210,7 @@ public class BotStateMachineOnboardingTests(ITestOutputHelper testOutputHelper) 
     {
         var id = NewId.NextGuid();
 
-        await _harness.Bus.Publish(new UserIntentDetected(id, "signup"));
+        await _harness.Bus.Publish(new UserIntentDetected(id, Bot.Shared.Enums.IntentType.Signup));
         await _harness.Bus.Publish(new FullNameProvided(id, "Test User"));
         await _harness.Bus.Publish(new NinProvided(id, "12345678901"));
         await _harness.Bus.Publish(new NinVerified(id, "12345678901"));
@@ -227,8 +227,8 @@ public class BotStateMachineOnboardingTests(ITestOutputHelper testOutputHelper) 
     {
         var id = NewId.NextGuid();
 
-        await _harness.Bus.Publish(new UserIntentDetected(id, "signup"));
-        await _harness.Bus.Publish(new UserIntentDetected(id, "signup"));
+        await _harness.Bus.Publish(new UserIntentDetected(id, Bot.Shared.Enums.IntentType.Signup));
+        await _harness.Bus.Publish(new UserIntentDetected(id, Bot.Shared.Enums.IntentType.Signup));
 
         var count = _sagaHarness.Sagas.Count();
         testOutputHelper.WriteLine(count.ToString());
@@ -239,7 +239,7 @@ public class BotStateMachineOnboardingTests(ITestOutputHelper testOutputHelper) 
     {
         var id = NewId.NextGuid();
 
-        await _harness.Bus.Publish(new UserIntentDetected(id, "signup"));
+        await _harness.Bus.Publish(new UserIntentDetected(id, Bot.Shared.Enums.IntentType.Signup));
         await _harness.Bus.Publish(new FullNameProvided(id, "Test User"));
 
         // Wait for AskNin state to be set
@@ -261,7 +261,7 @@ public class BotStateMachineOnboardingTests(ITestOutputHelper testOutputHelper) 
         var id = NewId.NextGuid();
 
         // Complete onboarding
-        await _harness.Bus.Publish(new UserIntentDetected(id, "signup"));
+        await _harness.Bus.Publish(new UserIntentDetected(id, Bot.Shared.Enums.IntentType.Signup));
         await _harness.Bus.Publish(new FullNameProvided(id, "Ayomide"));
         await _harness.Bus.Publish(new NinProvided(id, "12345678901"));
         await _harness.Bus.Publish(new NinVerified(id, "12345678901"));
@@ -279,7 +279,7 @@ public class BotStateMachineOnboardingTests(ITestOutputHelper testOutputHelper) 
 
         // Send a sensitive intent (transfer) now that we're in Ready
         var payload = new TransferPayload("1234567890", "001", 5000, "Test");
-        await _harness.Bus.Publish(new UserIntentDetected(id, "transfer", TransferPayload: payload));
+        await _harness.Bus.Publish(new UserIntentDetected(id, Bot.Shared.Enums.IntentType.Transfer, TransferPayload: payload));
 
         // Saga should transition to AwaitingPinValidate
         var pinPrompt = await _sagaHarness.Exists(id, x => x.AwaitingPinValidate, TimeSpan.FromSeconds(5));
@@ -289,7 +289,7 @@ public class BotStateMachineOnboardingTests(ITestOutputHelper testOutputHelper) 
         var saga = _sagaHarness.Sagas.Contains(id);
         Assert.NotNull(saga);
         saga!.PendingIntentPayload = "<<<INVALID_JSON>>>";
-        saga.PendingIntentType = "transfer";
+        saga.PendingIntentType = Bot.Shared.Enums.IntentType.Transfer;
 
         // Publish PIN validated event
         var ex = await Record.ExceptionAsync(() => _harness.Bus.Publish(new PinValidated(id)));
@@ -307,7 +307,7 @@ public class BotStateMachineOnboardingTests(ITestOutputHelper testOutputHelper) 
     {
         var id = NewId.NextGuid();
 
-        await _harness.Bus.Publish(new UserIntentDetected(id, "signup"));
+        await _harness.Bus.Publish(new UserIntentDetected(id, Bot.Shared.Enums.IntentType.Signup));
 
         var askFullName = await _sagaHarness.Exists(id, x => x.AskFullName, TimeSpan.FromSeconds(5));
         Assert.True(askFullName.HasValue, "Saga should be created in AskFullName");
@@ -317,7 +317,7 @@ public class BotStateMachineOnboardingTests(ITestOutputHelper testOutputHelper) 
         var askNin = await _sagaHarness.Exists(id, x => x.AskNin, TimeSpan.FromSeconds(5));
         Assert.True(askNin.HasValue, "Saga should be in AskNin");
 
-        await _harness.Bus.Publish(new UserIntentDetected(id, "alien_command"));
+        await _harness.Bus.Publish(new UserIntentDetected(id, Bot.Shared.Enums.IntentType.Unknown));
 
         var saga = _sagaHarness.Sagas.Contains(id);
         Assert.NotNull(saga);
