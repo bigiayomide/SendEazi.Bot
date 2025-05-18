@@ -36,7 +36,7 @@ public class TemplateRenderingService(IOptions<TemplateSettings> opts, ILogger<T
         catch (Exception ex)
         {
             log.LogError(ex, "Failed to render template {Template}", templateName);
-            return "⚠️ Rendering error.";
+            return "⚠ Template error";
         }
     }
 
