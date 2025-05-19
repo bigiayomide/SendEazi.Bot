@@ -1,3 +1,4 @@
+using System;
 using Bot.Core.Services;
 
 namespace Bot.Tests.TestUtilities;
@@ -25,6 +26,16 @@ public class FakeConversationStateService : IConversationStateService
             SessionId = Guid.NewGuid(),
             State = "None",
             UserId = Guid.NewGuid(),
+            LastUpdatedUtc = DateTime.UtcNow
+        });
+
+    public Task<ConversationSession?> GetSessionByUserAsync(Guid userId)
+        => Task.FromResult<ConversationSession?>(new ConversationSession
+        {
+            PhoneNumber = "+2340000000000",
+            SessionId = Guid.NewGuid(),
+            State = "None",
+            UserId = userId,
             LastUpdatedUtc = DateTime.UtcNow
         });
 

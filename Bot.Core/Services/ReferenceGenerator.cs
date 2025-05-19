@@ -19,7 +19,8 @@ public class ReferenceGenerator : IReferenceGenerator
         var input = $"{userId}:{toAccount}:{bankCode}:{DateTime.UtcNow:yyyyMMddHHmmss}";
         using var sha = SHA256.Create();
         var hash = sha.ComputeHash(Encoding.UTF8.GetBytes(input));
-        return "txn:" + Convert.ToHexString(hash)[..12].ToLower();
+        var shortHash = Convert.ToHexString(hash)[..12].ToLower();
+        return $"txn:{userId}:{shortHash}";
     }
 
     public string GenerateRecurringRef(Guid recurringId)
