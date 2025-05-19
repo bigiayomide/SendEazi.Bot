@@ -111,6 +111,40 @@ public class QuickReplyServiceTests
     }
 
     [Fact]
+    public async Task RecordPayeeUse_Should_Respect_MaxFavorites_Limit()
+    {
+        var userId = Guid.NewGuid();
+        await using var db = CreateDb("qr-max-limit");
+        var cache = CreateCache();
+        var service = CreateService(db, cache);
+
+        // Seed more payees than allowed by MaxFavorites
+        var payees = Enumerable.Range(0, 5).Select(_ => new Payee
+        {
+            Id = Guid.NewGuid(),
+            UserId = userId,
+            AccountNumber = Random.Shared.NextInt64().ToString()[^10..],
+            BankCode = "000"
+        }).ToList();
+
+        db.Payees.AddRange(payees);
+        await db.SaveChangesAsync();
+
+        // Record usage sequentially
+        foreach (var payee in payees)
+            await service.RecordPayeeUseAsync(userId, payee.Id);
+
+        var key = $"qr:{userId}";
+        var data = await cache.GetStringAsync(key);
+        var ids = JsonSerializer.Deserialize<List<Guid>>(data!);
+
+        // Expect only the newest MaxFavorites payees in order
+        ids.Should().BeEquivalentTo(
+            payees[^3..].Select(p => p.Id).Reverse(),
+            options => options.WithStrictOrdering());
+    }
+
+    [Fact]
     public async Task BuildBalanceCardAsync_Should_Create_Correct_Structure()
     {
         await using var db = CreateDb("qr-balance");
