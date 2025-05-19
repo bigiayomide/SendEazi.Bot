@@ -31,6 +31,25 @@ public class DocumentAnalysisClientWrapperTests
         lines.Should().BeEquivalentTo("hello", "world");
     }
 
+    [Fact]
+    public async Task ExtractLinesAsync_Should_Return_Empty_When_No_Pages()
+    {
+        var result = DocumentAnalysisModelFactory.AnalyzeResult(pages: Array.Empty<DocumentPage>());
+        var operation = new FakeOperation(result);
+
+        var client = new Mock<DocumentAnalysisClient>();
+        client.Setup(c =>
+                c.AnalyzeDocumentAsync(WaitUntil.Completed, "prebuilt-read", It.IsAny<Stream>(), null,
+                    CancellationToken.None))
+            .ReturnsAsync(operation);
+
+        var wrapper = new DocumentAnalysisClientWrapper(client.Object);
+        await using var ms = new MemoryStream(new byte[] { 1, 2, 3 });
+        var lines = await wrapper.ExtractLinesAsync(ms);
+
+        lines.Should().BeEmpty();
+    }
+
     private class FakeOperation : AnalyzeDocumentOperation
     {
         private readonly AnalyzeResult _value;
