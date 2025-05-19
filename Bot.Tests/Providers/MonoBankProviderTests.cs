@@ -60,4 +60,65 @@ public class MonoBankProviderTests
         body.GetProperty("phone").GetString().Should().Be(user.PhoneNumber);
         body.GetProperty("bvn").GetString().Should().Be("12345678901");
     }
+
+    [Fact]
+    public async Task InitiateDebitAsync_Should_HitEndpoint_And_ReturnTransactionId()
+    {
+        var handler = new MockHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            Content = new StringContent("{\"data\":{\"transactionId\":\"tx1\"}}")
+        });
+        var client = new HttpClient(handler);
+
+        var opts = Options.Create(new MonoOptions
+        {
+            BaseUrl = "https://mono.test",
+            SecretKey = "sec",
+            BusinessSubAccountId = "sub"
+        });
+
+        var provider = new MonoBankProvider(client, opts, Mock.Of<ILogger<MonoBankProvider>>(), Mock.Of<IEncryptionService>());
+
+        var result = await provider.InitiateDebitAsync("mandate", 50m, "ref-1", "pay me");
+
+        result.Should().Be("tx1");
+
+        handler.LastRequest.Should().NotBeNull();
+        var req = handler.LastRequest!;
+        req.Method.Should().Be(HttpMethod.Post);
+        req.RequestUri!.PathAndQuery.Should().Be("/v3/payments/mandates/mandate/debit");
+
+        var body = JsonDocument.Parse(await req.Content!.ReadAsStringAsync()).RootElement;
+        body.GetProperty("amount").GetInt32().Should().Be(5000);
+        body.GetProperty("reference").GetString().Should().Be("ref-1");
+        body.GetProperty("narration").GetString().Should().Be("pay me");
+    }
+
+    [Fact]
+    public async Task GetBalanceAsync_Should_HitEndpoint_And_ReturnBalance()
+    {
+        var handler = new MockHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            Content = new StringContent("{\"data\":{\"available_balance\":123.45}}")
+        });
+        var client = new HttpClient(handler);
+
+        var opts = Options.Create(new MonoOptions
+        {
+            BaseUrl = "https://mono.test",
+            SecretKey = "sec",
+            BusinessSubAccountId = "sub"
+        });
+
+        var provider = new MonoBankProvider(client, opts, Mock.Of<ILogger<MonoBankProvider>>(), Mock.Of<IEncryptionService>());
+
+        var result = await provider.GetBalanceAsync("acct1");
+
+        result.Should().Be(123.45m);
+
+        handler.LastRequest.Should().NotBeNull();
+        var req = handler.LastRequest!;
+        req.Method.Should().Be(HttpMethod.Get);
+        req.RequestUri!.PathAndQuery.Should().Be("/v1/accounts/acct1/balance");
+    }
 }
