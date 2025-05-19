@@ -43,6 +43,7 @@ public class BillingService(ApplicationDbContext db, ILogger<BillingService> log
     {
         var unswept = await db.FeeRecords.Where(f => !f.Swept).ToListAsync();
         var total = unswept.Sum(f => f.Amount);
+        var count = unswept.Count;
 
         if (total <= 0)
         {
@@ -56,7 +57,9 @@ public class BillingService(ApplicationDbContext db, ILogger<BillingService> log
         {
             unswept.ForEach(f => f.Swept = true);
             await db.SaveChangesAsync();
-            logger.LogInformation("Swept total fees {Total} to master account", total);
+            logger.LogInformation(
+                "Swept {Count} fee records totaling {Total} to master account",
+                count, total);
         }
         else
         {
