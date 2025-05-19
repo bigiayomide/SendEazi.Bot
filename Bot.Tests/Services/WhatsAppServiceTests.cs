@@ -188,4 +188,14 @@ public class WhatsAppServiceTests
         deleteReq!.Method.Should().Be(HttpMethod.Delete);
         deleteReq.RequestUri!.PathAndQuery.Should().Be("/123/messages/msgX");
     }
+
+    [Fact]
+    public async Task SendTextMessageAsync_Throws_On_NonSuccess_Status()
+    {
+        var (svc, _) = CreateService(_ => new HttpResponseMessage(HttpStatusCode.BadRequest));
+
+        var act = () => svc.SendTextMessageAsync("111", "fail");
+
+        await act.Should().ThrowAsync<HttpRequestException>();
+    }
 }
