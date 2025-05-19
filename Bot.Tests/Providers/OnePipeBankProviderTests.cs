@@ -78,4 +78,86 @@ public class OnePipeBankProviderTests
         trans.GetProperty("amount").GetInt32().Should().Be(10000);
         trans.GetProperty("customer").GetProperty("bvn").GetString().Should().Be(expectedEnc);
     }
+
+    [Fact]
+    public async Task InitiateDebitAsync_Should_HitEndpoint_And_ReturnRef()
+    {
+        var secret = "0123456789abcdef01234567"; // 24 chars
+        var opts = Options.Create(new OnePipeOptions
+        {
+            BaseUrl = "https://pipe.test",
+            ApiKey = "api-key",
+            MerchantId = "m",
+            SecretKey = secret
+        });
+
+        string Encrypt(string val)
+        {
+            var key = Encoding.UTF8.GetBytes(secret[..24]);
+            using var tdes = TripleDES.Create();
+            tdes.Key = key;
+            tdes.Mode = CipherMode.ECB;
+            tdes.Padding = PaddingMode.PKCS7;
+            var enc = tdes.CreateEncryptor();
+            var input = Encoding.UTF8.GetBytes(val);
+            var output = enc.TransformFinalBlock(input, 0, input.Length);
+            return Convert.ToBase64String(output);
+        }
+
+        var expectedEnc = Encrypt("mand1");
+
+        var handler = new MockHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            Content = new StringContent("{\"data\":{\"transactionRef\":\"tx123\"}}")
+        });
+        var client = new HttpClient(handler);
+
+        var provider = new OnePipeBankProvider(client, opts, Mock.Of<IEncryptionService>());
+
+        var result = await provider.InitiateDebitAsync("mand1", 75m, "ref-1", "pay");
+
+        result.Should().Be("tx123");
+
+        handler.LastRequest.Should().NotBeNull();
+        var req = handler.LastRequest!;
+        req.Method.Should().Be(HttpMethod.Post);
+        req.RequestUri!.PathAndQuery.Should().Be("/transact");
+
+        var body = JsonDocument.Parse(await req.Content!.ReadAsStringAsync()).RootElement;
+        body.GetProperty("request_ref").GetString().Should().Be("ref-1");
+        body.GetProperty("auth").GetProperty("secure").GetString().Should().Be(expectedEnc);
+        body.GetProperty("transaction").GetProperty("amount").GetInt32().Should().Be(7500);
+    }
+
+    [Fact]
+    public async Task GetBalanceAsync_Should_HitEndpoint_And_ReturnBalance()
+    {
+        var opts = Options.Create(new OnePipeOptions
+        {
+            BaseUrl = "https://pipe.test",
+            ApiKey = "api-key",
+            MerchantId = "m",
+            SecretKey = "0123456789abcdef01234567"
+        });
+
+        var handler = new MockHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            Content = new StringContent("{\"data\":{\"available_balance\":250}}")
+        });
+        var client = new HttpClient(handler);
+
+        var provider = new OnePipeBankProvider(client, opts, Mock.Of<IEncryptionService>());
+
+        var result = await provider.GetBalanceAsync("acc123");
+
+        result.Should().Be(250m);
+
+        handler.LastRequest.Should().NotBeNull();
+        var req = handler.LastRequest!;
+        req.Method.Should().Be(HttpMethod.Post);
+        req.RequestUri!.PathAndQuery.Should().Be("/v1/balance");
+
+        var body = JsonDocument.Parse(await req.Content!.ReadAsStringAsync()).RootElement;
+        body.GetProperty("account_ref").GetString().Should().Be("acc123");
+    }
 }
