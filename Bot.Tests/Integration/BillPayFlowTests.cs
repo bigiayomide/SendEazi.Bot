@@ -23,6 +23,8 @@ public class BillPayFlowTests : IAsyncLifetime
     private class FakeBillPayService : IBillPayService
     {
         private readonly ApplicationDbContext _db;
+        public bool ShouldFail { get; set; }
+
         public FakeBillPayService(ApplicationDbContext db) => _db = db;
 
         public Task<IReadOnlyList<BillPayment>> ProcessDueBillPaymentsAsync() =>
@@ -37,9 +39,9 @@ public class BillPayFlowTests : IAsyncLifetime
                 Biller = Enum.Parse<BillerEnum>(billerCode),
                 Amount = amount,
                 DueDate = dueDate,
-                IsPaid = true,
+                IsPaid = !ShouldFail,
                 CreatedAt = DateTime.UtcNow,
-                PaidAt = DateTime.UtcNow
+                PaidAt = ShouldFail ? null : DateTime.UtcNow
             };
             _db.BillPayments.Add(bill);
             await _db.SaveChangesAsync();
@@ -131,5 +133,27 @@ public class BillPayFlowTests : IAsyncLifetime
         var bill = await _db.BillPayments.FirstOrDefaultAsync();
         Assert.NotNull(bill);
         Assert.True(bill!.IsPaid);
+    }
+
+    [Fact]
+    public async Task Should_Handle_BillPay_Failure()
+    {
+        var userId = Guid.NewGuid();
+        var sid = await SeedReadyAsync(userId);
+
+        var svc = (FakeBillPayService)_provider.GetRequiredService<IBillPayService>();
+        svc.ShouldFail = true;
+
+        var payload = new BillPayload("Water", "222", 2500, "Water");
+        await _harness.Bus.Publish(new UserIntentDetected(sid, IntentType.BillPay, BillPayload: payload));
+        await _sagaHarness.Exists(sid, x => x.AwaitingPinValidate, TimeSpan.FromSeconds(5));
+
+        await _harness.Bus.Publish(new PinValidated(sid));
+        await _harness.InactivityTask;
+
+        var bill = await _db.BillPayments.FirstOrDefaultAsync();
+        Assert.NotNull(bill);
+        Assert.False(bill!.IsPaid);
+        Assert.True(await _harness.Published.Any<BillPayFailed>(x => x.Context.Message.CorrelationId == sid));
     }
 }

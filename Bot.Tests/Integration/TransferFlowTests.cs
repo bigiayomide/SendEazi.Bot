@@ -138,4 +138,27 @@ public class TransferFlowTests : IAsyncLifetime
         Assert.Equal(TransactionStatus.Success, tx.Status);
         Assert.True(await _harness.Published.Any<PreviewCmd>(x => x.Context.Message.CorrelationId == sid));
     }
+
+    [Fact]
+    public async Task Should_Handle_Transfer_Failure()
+    {
+        var userId = Guid.NewGuid();
+        var sid = await SeedReadyAsync(userId);
+
+        _bank.Setup(b => b.InitiateDebitAsync(It.IsAny<string>(), It.IsAny<decimal>(), It.IsAny<string>(), It.IsAny<string>()))
+            .ThrowsAsync(new Exception("fail"));
+
+        var payload = new TransferPayload("2222", "999", 7000, "FailTest");
+        await _harness.Bus.Publish(new UserIntentDetected(sid, IntentType.Transfer, TransferPayload: payload));
+        await _sagaHarness.Exists(sid, x => x.AwaitingPinValidate, TimeSpan.FromSeconds(5));
+
+        await _harness.Bus.Publish(new PinValidated(sid));
+        await _harness.InactivityTask;
+
+        var tx = await _db.Transactions.FirstOrDefaultAsync(t => t.Reference == "TX-REF");
+        Assert.NotNull(tx);
+        Assert.Equal(TransactionStatus.Failed, tx!.Status);
+        Assert.True(await _harness.Published.Any<TransferFailed>(x => x.Context.Message.CorrelationId == sid));
+        Assert.True(await _harness.Published.Any<NudgeCmd>(x => x.Context.Message.CorrelationId == sid && x.Context.Message.NudgeType == NudgeType.TransferFail));
+    }
 }
