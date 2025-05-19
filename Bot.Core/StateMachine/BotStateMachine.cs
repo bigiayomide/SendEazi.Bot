@@ -75,8 +75,16 @@ public class BotStateMachine : MassTransitStateMachine<BotState>
         Event(() => PinSetBad, x => x.CorrelateById(m => m.Message.CorrelationId));
         Event(() => PinOk, x => x.CorrelateById(m => m.Message.CorrelationId));
         Event(() => PinBad, x => x.CorrelateById(m => m.Message.CorrelationId));
-        Event(() => TxOk, x => x.CorrelateById(m => m.Message.CorrelationId));
-        Event(() => TxBad, x => x.CorrelateById(m => m.Message.CorrelationId));
+        Event(() => TxOk, x =>
+        {
+            x.CorrelateById(m => m.Message.CorrelationId);
+            x.InsertOnInitial = true;
+        });
+        Event(() => TxBad, x =>
+        {
+            x.CorrelateById(m => m.Message.CorrelationId);
+            x.InsertOnInitial = true;
+        });
         Event(() => BillOk, x => x.CorrelateById(m => m.Message.CorrelationId));
         Event(() => BillBad, x => x.CorrelateById(m => m.Message.CorrelationId));
         Event(() => BalSent, x => x.CorrelateById(m => m.Message.CorrelationId));
@@ -85,6 +93,21 @@ public class BotStateMachine : MassTransitStateMachine<BotState>
         Event(() => RecCancel, x => x.CorrelateById(m => m.Message.CorrelationId));
         Event(() => GoalAlert, x => x.CorrelateById(m => m.Message.CorrelationId));
         Event(() => MandateReadyEvt, x => x.CorrelateById(m => m.Message.CorrelationId));
+
+        // Webhook: handle transfer callbacks
+        Initially(
+            When(TxOk)
+                .ThenAsync(async ctx =>
+                {
+                    if (!ctx.Saga.PreviewPublished)
+                    {
+                        await ctx.Publish(new PreviewCmd(ctx.Saga.CorrelationId));
+                        ctx.Saga.PreviewPublished = true;
+                    }
+                }),
+            When(TxBad)
+                .PublishAsync(ctx => Task.FromResult(new NudgeCmd(ctx.Saga.CorrelationId, NudgeType.TransferFail, ctx.Saga.PhoneNumber)))
+        );
 
         // Onboarding Flow
         Initially(
@@ -252,6 +275,52 @@ public class BotStateMachine : MassTransitStateMachine<BotState>
                 })
                 .ThenAsync(SetState("Ready"))
                 .TransitionTo(Ready)
+        );
+
+        // Recurring flows: handle scheduled executions, failures, and cancellations
+        DuringAny(
+            When(RecExec)
+                .ThenAsync(async ctx =>
+                {
+                    var intent = ctx.Saga.PendingIntentType;
+                    var payload = ctx.Saga.PendingIntentPayload;
+                    if (intent.HasValue && payload != null)
+                    {
+                        try
+                        {
+                            var detected = JsonSerializer.Deserialize<UserIntentDetected>(payload)!;
+                            var refGen = ctx.TryGetPayload<IServiceProvider>(out var sp)
+                                ? sp.GetService<IReferenceGenerator>()
+                                : null;
+                            switch (intent.Value)
+                            {
+                                case Bot.Shared.Enums.IntentType.Transfer:
+                                    var transferPayload = detected.TransferPayload!;
+                                    var reference = refGen?.GenerateTransferRef(
+                                        ctx.Saga.CorrelationId,
+                                        transferPayload.ToAccount,
+                                        transferPayload.BankCode
+                                    )!;
+                                    await ctx.Publish(new TransferCmd(ctx.Saga.CorrelationId, transferPayload, reference));
+                                    break;
+                                case Bot.Shared.Enums.IntentType.BillPay:
+                                    await ctx.Publish(new BillPayCmd(ctx.Saga.CorrelationId, detected.BillPayload!));
+                                    break;
+                            }
+                        }
+                        catch (JsonException)
+                        {
+                        }
+                    }
+                }),
+            When(RecBad)
+                .TransitionTo(AwaitingPinValidate),
+            When(RecCancel)
+                .Then(ctx =>
+                {
+                    ctx.Saga.PendingIntentType = null;
+                    ctx.Saga.PendingIntentPayload = null;
+                })
         );
 
         // Side-effect only: greeting/unknown handled everywhere

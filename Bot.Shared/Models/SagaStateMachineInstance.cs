@@ -11,6 +11,7 @@ public class BotState : SagaStateMachineInstance
     public bool BankLinked { get; set; }
     public bool PinSet { get; set; }
     public bool PinValidated { get; set; }
+    public bool PreviewPublished { get; set; }
 
     public Guid? ActiveBillId { get; set; }
     public Guid? ActiveRecurringId { get; set; }

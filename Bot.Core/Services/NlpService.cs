@@ -116,6 +116,10 @@ public class NlpService(
 
             return result;
         }
+        catch (JsonException)
+        {
+            throw;
+        }
         catch (Exception e)
         {
             Console.WriteLine(e);

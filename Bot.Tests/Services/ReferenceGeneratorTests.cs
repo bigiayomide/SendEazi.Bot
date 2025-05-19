@@ -21,7 +21,7 @@ public class ReferenceGeneratorTests
         // Assert
         reference.Should().StartWith($"txn:{userId}:");
         reference.Length.Should().Be($"txn:{userId}:".Length + 12);
-        reference.Should().MatchRegex($"^txn:{userId}:[a-z0-9]{12}$");
+        reference.Should().MatchRegex($"^txn:{userId}:[a-z0-9]{{12}}$");
     }
 
     [Fact]

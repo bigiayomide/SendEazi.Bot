@@ -22,7 +22,8 @@ public class BotStateMachinePinAndIntentTests(ITestOutputHelper testOutputHelper
     public async Task InitializeAsync()
     {
         _provider = new ServiceCollection()
-            .AddSingleton(_stateServiceMock.Object)
+            .AddSingleton<IConversationStateService>(_stateServiceMock.Object)
+            .AddSingleton<IReferenceGenerator, ReferenceGenerator>()
             .AddMassTransitTestHarness(cfg =>
             {
                 cfg.AddSagaStateMachine<BotStateMachine, BotState>().InMemoryRepository();

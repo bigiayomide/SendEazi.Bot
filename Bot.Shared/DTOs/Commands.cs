@@ -45,7 +45,7 @@ public record MemoCmd(Guid CorrelationId, MemoPayload Payload);
 
 public record FeedbackCmd(Guid CorrelationId, FeedbackPayload Payload);
 
-public class PromptFullNameCmd(Guid CorrelationId);
+public record PromptFullNameCmd(Guid CorrelationId);
 
 public class PromptNinCmd
 {
