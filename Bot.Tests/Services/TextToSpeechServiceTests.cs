@@ -65,4 +65,28 @@ public class TextToSpeechServiceTests
             It.IsAny<Exception?>(),
             It.IsAny<Func<It.IsAnyType, Exception?, string>>()), Times.Once);
     }
+
+    [Fact]
+    public void Ctor_Throws_When_SubscriptionKey_Missing()
+    {
+        var cache = new MemoryCache(new MemoryCacheOptions());
+        var opts = Options.Create(new TextToSpeechOptions { SubscriptionKey = "", Region = "r" });
+        var logger = new Mock<ILogger<TextToSpeechService>>();
+
+        var act = () => new TextToSpeechService(cache, opts, logger.Object);
+
+        act.Should().Throw<ArgumentNullException>();
+    }
+
+    [Fact]
+    public void Ctor_Throws_When_Region_Missing()
+    {
+        var cache = new MemoryCache(new MemoryCacheOptions());
+        var opts = Options.Create(new TextToSpeechOptions { SubscriptionKey = "k", Region = "" });
+        var logger = new Mock<ILogger<TextToSpeechService>>();
+
+        var act = () => new TextToSpeechService(cache, opts, logger.Object);
+
+        act.Should().Throw<ArgumentNullException>();
+    }
 }
