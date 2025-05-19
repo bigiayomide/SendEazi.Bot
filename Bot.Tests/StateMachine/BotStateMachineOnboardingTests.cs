@@ -327,4 +327,88 @@ public class BotStateMachineOnboardingTests(ITestOutputHelper testOutputHelper) 
         Assert.Contains(saga.CurrentState, new[] { "AskNin", "AskFullName" }); // state should remain stable
     }
 
+    [Fact]
+    public async Task ONB_16_Should_Finalize_On_AskNin_Timeout()
+    {
+        var id = NewId.NextGuid();
+
+        await _harness.Bus.Publish(new UserIntentDetected(id, Shared.Enums.IntentType.Signup));
+        await _harness.Bus.Publish(new FullNameProvided(id, "Test"));
+        await _sagaHarness.Exists(id, x => x.AskNin, TimeSpan.FromSeconds(5));
+
+        await _harness.Bus.Publish(new TimeoutExpired { CorrelationId = id });
+
+        var final = await _sagaHarness.Exists(id, x => x.Final, TimeSpan.FromSeconds(5));
+        Assert.NotNull(final);
+
+        var nudge = _harness.Published.Select<NudgeCmd>()
+            .FirstOrDefault(x => x.Context.Message.CorrelationId == id);
+        Assert.NotNull(nudge);
+        Assert.Equal(NudgeType.TimedOut, nudge.Context.Message.NudgeType);
+    }
+
+    [Fact]
+    public async Task ONB_17_Should_Finalize_On_AskBvn_Timeout()
+    {
+        var id = NewId.NextGuid();
+
+        await _harness.Bus.Publish(new UserIntentDetected(id, Shared.Enums.IntentType.Signup));
+        await _harness.Bus.Publish(new FullNameProvided(id, "Test"));
+        await _harness.Bus.Publish(new NinProvided(id, "12345678901"));
+        await _harness.Bus.Publish(new NinVerified(id, "12345678901"));
+        await _sagaHarness.Exists(id, x => x.AskBvn, TimeSpan.FromSeconds(5));
+
+        await _harness.Bus.Publish(new TimeoutExpired { CorrelationId = id });
+
+        var final = await _sagaHarness.Exists(id, x => x.Final, TimeSpan.FromSeconds(5));
+        Assert.NotNull(final);
+
+        var nudge = _harness.Published.Select<NudgeCmd>()
+            .FirstOrDefault(x => x.Context.Message.CorrelationId == id);
+        Assert.NotNull(nudge);
+        Assert.Equal(NudgeType.TimedOut, nudge.Context.Message.NudgeType);
+    }
+
+    private async Task<Guid> SeedUserToAwaitingPinSetupAsync()
+    {
+        var sagaId = NewId.NextGuid();
+
+        await _harness.Bus.Publish(new UserIntentDetected(sagaId, IntentType.Signup,
+            SignupPayload: new SignupPayload("Seed", "+2348000000000", "12345678901", "12345678901")));
+        await _sagaHarness.Exists(sagaId, x => x.NinValidating, TimeSpan.FromSeconds(5));
+
+        await _harness.Bus.Publish(new NinVerified(sagaId, "12345678901"));
+        await _sagaHarness.Exists(sagaId, x => x.AskBvn, TimeSpan.FromSeconds(5));
+
+        await _harness.Bus.Publish(new BvnProvided(sagaId, "12345678901"));
+        await _sagaHarness.Exists(sagaId, x => x.BvnValidating, TimeSpan.FromSeconds(5));
+
+        await _harness.Bus.Publish(new BvnVerified(sagaId, "12345678901"));
+        await _sagaHarness.Exists(sagaId, x => x.AwaitingKyc, TimeSpan.FromSeconds(5));
+
+        await _harness.Bus.Publish(new SignupSucceeded(sagaId, Guid.NewGuid()));
+        await _sagaHarness.Exists(sagaId, x => x.AwaitingBankLink, TimeSpan.FromSeconds(5));
+
+        await _harness.Bus.Publish(new MandateReadyToDebit(sagaId, "mandate-123", "provider"));
+        await _sagaHarness.Exists(sagaId, x => x.AwaitingPinSetup, TimeSpan.FromSeconds(5));
+
+        return sagaId;
+    }
+
+    [Fact]
+    public async Task ONB_18_Should_Return_To_AwaitingBankLink_On_BankLinkFailed()
+    {
+        var id = await SeedUserToAwaitingPinSetupAsync();
+
+        await _harness.Bus.Publish(new BankLinkFailed(id, "err"));
+
+        var instance = await _sagaHarness.Exists(id, x => x.AwaitingBankLink, TimeSpan.FromSeconds(5));
+        Assert.NotNull(instance);
+
+        var nudge = _harness.Published.Select<NudgeCmd>()
+            .FirstOrDefault(x => x.Context.Message.CorrelationId == id);
+        Assert.NotNull(nudge);
+        Assert.Equal(NudgeType.BankFailed, nudge.Context.Message.NudgeType);
+    }
+
 }

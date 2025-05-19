@@ -404,4 +404,25 @@ public class BotStateMachinePinAndIntentTests(ITestOutputHelper testOutputHelper
         Assert.Null(transferCmd);
     }
 
+    [Fact]
+    public async Task PIN_12_Should_Finalize_On_AwaitingPinValidate_Timeout()
+    {
+        var id = await SeedUserToReadyAsync();
+
+        var payload = new TransferPayload("111111", "001", 12345, "Test");
+        await _harness.Bus.Publish(new UserIntentDetected(id, IntentType.Transfer, TransferPayload: payload));
+
+        await _sagaHarness.Exists(id, x => x.AwaitingPinValidate, TimeSpan.FromSeconds(5));
+
+        await _harness.Bus.Publish(new TimeoutExpired { CorrelationId = id });
+
+        var final = await _sagaHarness.Exists(id, x => x.Final, TimeSpan.FromSeconds(5));
+        Assert.NotNull(final);
+
+        var nudge = _harness.Published.Select<NudgeCmd>()
+            .FirstOrDefault(x => x.Context.Message.CorrelationId == id);
+        Assert.NotNull(nudge);
+        Assert.Equal(NudgeType.TimedOut, nudge.Context.Message.NudgeType);
+    }
+
 }
