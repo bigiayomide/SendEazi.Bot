@@ -1,0 +1,46 @@
+using Bot.Host.BackgroundJobs;
+using Bot.Core.Services;
+using Moq;
+using Quartz;
+using Microsoft.Extensions.Logging;
+using Xunit;
+
+namespace Bot.Tests.BackgroundJobs;
+
+public class BillPayJobTests
+{
+    [Fact]
+    public async Task Execute_Calls_ProcessDueBillPaymentsAsync()
+    {
+        var service = new Mock<IBillPayService>();
+        var logger = new Mock<ILogger<BillPayJob>>();
+        var job = new BillPayJob(service.Object, logger.Object);
+        var context = new Mock<IJobExecutionContext>();
+        context.SetupGet(c => c.FireTimeUtc).Returns(DateTimeOffset.UtcNow);
+
+        await job.Execute(context.Object);
+
+        service.Verify(s => s.ProcessDueBillPaymentsAsync(), Times.Once);
+    }
+
+    [Fact]
+    public async Task Execute_Logs_Error_On_Exception()
+    {
+        var service = new Mock<IBillPayService>();
+        service.Setup(s => s.ProcessDueBillPaymentsAsync()).ThrowsAsync(new Exception("fail"));
+        var logger = new Mock<ILogger<BillPayJob>>();
+        var job = new BillPayJob(service.Object, logger.Object);
+        var context = new Mock<IJobExecutionContext>();
+        context.SetupGet(c => c.FireTimeUtc).Returns(DateTimeOffset.UtcNow);
+
+        await job.Execute(context.Object);
+
+        logger.Verify(l => l.Log(
+            LogLevel.Error,
+            It.IsAny<EventId>(),
+            It.IsAny<It.IsAnyType>(),
+            It.IsAny<Exception?>(),
+            It.IsAny<Func<It.IsAnyType, Exception?, string>>()),
+            Times.AtLeastOnce);
+    }
+}
