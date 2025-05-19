@@ -1,5 +1,6 @@
 using Bot.Core.Services;
 using Bot.Infrastructure.Data;
+using Bot.Shared;
 using Bot.Shared.DTOs;
 using Bot.Shared.Models;
 using FluentAssertions;

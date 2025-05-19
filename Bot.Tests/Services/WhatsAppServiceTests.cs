@@ -205,7 +205,7 @@ public class WhatsAppServiceTests
     public async Task DeleteMessageAsync_Logs_Error_On_Failure()
     {
         var logger = new ListLogger();
-        var (svc, _) = CreateService(_ => new HttpResponseMessage(HttpStatusCode.InternalServerError), logger: logger);
+        var (svc, _) = CreateService(_ => new HttpResponseMessage(HttpStatusCode.InternalServerError));
 
         await svc.DeleteMessageAsync("badId");
 
