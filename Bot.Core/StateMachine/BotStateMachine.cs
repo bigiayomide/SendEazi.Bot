@@ -193,6 +193,13 @@ public class BotStateMachine : MassTransitStateMachine<BotState>
         During(AwaitingPinValidate,
             When(PinBad)
                 .PublishAsync(ctx => Task.FromResult(new NudgeCmd(ctx.Saga.CorrelationId, NudgeType.BadPin,  ctx.Saga.PhoneNumber, "⛔ Incorrect PIN. Please try again."))),
+            When(IntentEvt, ctx => ctx.Message.Intent is Bot.Shared.Enums.IntentType.Transfer or Bot.Shared.Enums.IntentType.BillPay)
+                .Then(ctx =>
+                {
+                    ctx.Saga.PendingIntentType = ctx.Message.Intent;
+                    ctx.Saga.PendingIntentPayload = JsonSerializer.Serialize(ctx.Message);
+                })
+                .PublishAsync(ctx => Task.FromResult(new NudgeCmd(ctx.Saga.CorrelationId, NudgeType.BadPin, ctx.Saga.PhoneNumber, "🔐 Please enter your PIN to proceed."))),
             When(PinSetEvt)
                 .ThenAsync(SetState("Ready"))
                 .TransitionTo(Ready)

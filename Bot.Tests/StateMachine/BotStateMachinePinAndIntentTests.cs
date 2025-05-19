@@ -275,4 +275,26 @@ public class BotStateMachinePinAndIntentTests(ITestOutputHelper testOutputHelper
         var transferCmd = _harness.Published.Select<TransferCmd>().FirstOrDefault(x => x.Context.Message.CorrelationId == id);
         Assert.Null(transferCmd);
     }
+
+    [Fact]
+    public async Task PIN_11_Should_Allow_Intent_Change_While_Awaiting_Pin()
+    {
+        var id = await SeedUserToReadyAsync();
+
+        var transfer = new TransferPayload("111111", "001", 12345, "Test");
+        var bill = new BillPayload("DSTV", "123456", 5000, "DSTV");
+
+        await _harness.Bus.Publish(new UserIntentDetected(id, Bot.Shared.Enums.IntentType.Transfer, TransferPayload: transfer));
+        await _harness.InactivityTask; // ensure state transition
+
+        await _harness.Bus.Publish(new UserIntentDetected(id, Bot.Shared.Enums.IntentType.BillPay, BillPayload: bill));
+        await _harness.Bus.Publish(new PinValidated(id));
+        await _harness.InactivityTask;
+
+        var billCmd = _harness.Published.Select<BillPayCmd>().FirstOrDefault(x => x.Context.Message.CorrelationId == id);
+        Assert.NotNull(billCmd);
+
+        var transferCmd = _harness.Published.Select<TransferCmd>().FirstOrDefault(x => x.Context.Message.CorrelationId == id);
+        Assert.Null(transferCmd);
+    }
 }
