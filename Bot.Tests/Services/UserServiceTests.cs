@@ -50,4 +50,18 @@ public class UserServiceTests
         result.Should().NotBeNull();
         result!.PersonalitySettings.Should().ContainSingle(p => p.Personality == PersonalityEnum.Casual);
     }
+
+    [Fact]
+    public async Task CreateAsync_Should_Set_Default_Source_And_BankToken()
+    {
+        var db = CreateDb("user-default-fields");
+        var service = new UserService(db);
+        var userId = Guid.NewGuid();
+        var payload = new SignupPayload("Jon", "+2348333333333", "12312312312", "32132132132");
+
+        var user = await service.CreateAsync(userId, payload);
+
+        user.SignupSource.Should().Be("chatbot");
+        user.BankAccessToken.Should().Be("pending");
+    }
 }
