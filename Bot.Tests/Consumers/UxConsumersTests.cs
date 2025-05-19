@@ -122,6 +122,22 @@ public class UxConsumersTests
     }
 
     [Fact]
+    public async Task ResolveQuickReplyCmd_Should_Publish_Nudge_When_Not_Found()
+    {
+        var userId = Guid.NewGuid();
+        var harness = await TestContextHelper.BuildTestHarness<ResolveQuickReplyCmdConsumer>();
+
+        await harness.Bus.Publish(new ResolveQuickReplyCmd(userId, "missing"));
+
+        var nudge = harness.Published.Select<NudgeCmd>().FirstOrDefault(x =>
+            x.Context.Message.CorrelationId == userId);
+        Assert.NotNull(nudge);
+        Assert.Equal(NudgeType.TransferFail, nudge.Context.Message.NudgeType);
+
+        await harness.Stop();
+    }
+
+    [Fact]
     public async Task RespondWithVoiceCmd_Should_Publish_VoiceReplyReady()
     {
         var tts = new Mock<ITextToSpeechService>();
