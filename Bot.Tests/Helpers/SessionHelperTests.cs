@@ -8,26 +8,28 @@ namespace Bot.Tests.Helpers;
 public class SessionHelperTests
 {
     [Fact]
-    public async Task SetSessionState_Should_Forward_To_Service()
+    public async Task SetSessionState_Should_Call_Service_With_Session_Id()
     {
-        var svc = new Mock<IConversationStateService>();
+        var svc = new Mock<IConversationStateService>(MockBehavior.Strict);
         var id = Guid.NewGuid();
+
+        svc.Setup(s => s.SetStateAsync(id, "Ready")).Returns(Task.CompletedTask).Verifiable();
 
         await SessionHelper.SetSessionState(svc.Object, id, "Ready");
 
-        svc.Verify(s => s.SetStateAsync(id, "Ready"), Times.Once);
+        svc.Verify();
     }
 
     [Fact]
-    public async Task GetSessionState_Should_Forward_To_Service()
+    public async Task GetSessionState_Should_Call_Service_With_Session_Id()
     {
-        var svc = new Mock<IConversationStateService>();
+        var svc = new Mock<IConversationStateService>(MockBehavior.Strict);
         var id = Guid.NewGuid();
-        svc.Setup(s => s.GetStateAsync(id)).ReturnsAsync("Ready");
+        svc.Setup(s => s.GetStateAsync(id)).ReturnsAsync("Ready").Verifiable();
 
         var state = await SessionHelper.GetSessionState(svc.Object, id);
 
         state.Should().Be("Ready");
-        svc.Verify(s => s.GetStateAsync(id), Times.Once);
+        svc.Verify();
     }
 }
