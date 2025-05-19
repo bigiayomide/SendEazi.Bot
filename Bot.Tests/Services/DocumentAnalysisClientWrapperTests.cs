@@ -3,6 +3,7 @@ using Azure.AI.FormRecognizer.DocumentAnalysis;
 using Bot.Core.Services;
 using FluentAssertions;
 using Moq;
+using Assert = Xunit.Assert;
 
 namespace Bot.Tests.Services;
 
@@ -48,6 +49,24 @@ public class DocumentAnalysisClientWrapperTests
         var lines = await wrapper.ExtractLinesAsync(ms);
 
         lines.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task ExtractLinesAsync_Should_Throw_When_Client_Fails()
+    {
+        var expected = new InvalidOperationException("fail");
+
+        var client = new Mock<DocumentAnalysisClient>();
+        client.Setup(c =>
+                c.AnalyzeDocumentAsync(WaitUntil.Completed, "prebuilt-read", It.IsAny<Stream>(), null,
+                    CancellationToken.None))
+            .ThrowsAsync(expected);
+
+        var wrapper = new DocumentAnalysisClientWrapper(client.Object);
+        await using var ms = new MemoryStream(new byte[] { 1, 2, 3 });
+
+        var ex = await Assert.ThrowsAsync<InvalidOperationException>(() => wrapper.ExtractLinesAsync(ms));
+        ex.Should().BeSameAs(expected);
     }
 
     private class FakeOperation : AnalyzeDocumentOperation
