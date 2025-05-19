@@ -104,4 +104,12 @@ public class PinServiceTests
 
         isValid.Should().BeFalse();
     }
+
+    [Fact]
+    public async Task SetAsync_Should_Throw_When_UserNotFound()
+    {
+        var act = () => _service.SetAsync(Guid.NewGuid(), "0000");
+
+        await act.Should().ThrowAsync<InvalidOperationException>();
+    }
 }
