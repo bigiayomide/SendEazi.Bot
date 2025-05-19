@@ -19,4 +19,18 @@ public class OcrServiceTests
 
         result.Should().Be("hello world");
     }
+
+    [Fact]
+    public async Task ExtractTextAsync_Returns_Empty_When_No_Lines()
+    {
+        var mockClient = new Mock<IDocumentAnalysisClient>();
+        mockClient.Setup(x => x.ExtractLinesAsync(It.IsAny<Stream>()))
+            .ReturnsAsync(Array.Empty<string>());
+
+        var service = new OcrService(mockClient.Object);
+        await using var ms = new MemoryStream(new byte[] { 1, 2, 3 });
+        var result = await service.ExtractTextAsync(ms);
+
+        result.Should().BeEmpty();
+    }
 }
