@@ -117,6 +117,7 @@ services.AddHttpClient<OnePipeBankProvider>()
         services.AddHttpClient<IWhatsAppService, WhatsAppService>()
     .SetHandlerLifetime(TimeSpan.FromMinutes(5));
         services.Configure<SmsOptions>(cfg.GetSection("Sms"));
+        services.AddScoped<ITwilioMessageSender, TwilioMessageSender>();
         services.AddScoped<ISmsBackupService, SmsBackupService>();
 
         services.AddSingleton<IJobFactory, SingletonJobFactory>();

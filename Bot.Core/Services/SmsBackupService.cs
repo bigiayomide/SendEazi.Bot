@@ -27,13 +27,16 @@ public class SmsBackupService : ISmsBackupService
 {
     private readonly ILogger<SmsBackupService> _logger;
     private readonly SmsOptions _opts;
+    private readonly ITwilioMessageSender _twilio;
 
     public SmsBackupService(
         IOptions<SmsOptions> opts,
-        ILogger<SmsBackupService> logger)
+        ILogger<SmsBackupService> logger,
+        ITwilioMessageSender twilio)
     {
         _opts = opts.Value;
         _logger = logger;
+        _twilio = twilio;
 
         TwilioClient.Init(_opts.AccountSid, _opts.AuthToken);
     }
@@ -42,12 +45,8 @@ public class SmsBackupService : ISmsBackupService
     {
         try
         {
-            var msg = await MessageResource.CreateAsync(
-                body: message,
-                from: new PhoneNumber(_opts.FromNumber),
-                to: new PhoneNumber(toPhoneNumber)
-            );
-            _logger.LogInformation("SMS sent: SID={Sid}", msg.Sid);
+            var sid = await _twilio.SendAsync(_opts.FromNumber, toPhoneNumber, message);
+            _logger.LogInformation("SMS sent: SID={Sid}", sid);
         }
         catch (Exception ex)
         {
