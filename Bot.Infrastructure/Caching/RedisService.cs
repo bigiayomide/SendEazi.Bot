@@ -7,9 +7,13 @@ public class RedisService
     private readonly IDatabase _db;
 
     public RedisService(RedisConfiguration config)
+        : this(ConnectionMultiplexer.Connect(config.ConnectionString))
     {
-        var mux = ConnectionMultiplexer.Connect(config.ConnectionString);
-        _db = mux.GetDatabase();
+    }
+
+    public RedisService(IConnectionMultiplexer connection)
+    {
+        _db = connection.GetDatabase();
     }
 
     public async Task SetAsync(string key, string value, TimeSpan? expiry = null)
