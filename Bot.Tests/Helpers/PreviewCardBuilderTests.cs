@@ -45,4 +45,16 @@ public class PreviewCardBuilderTests
         card.GetType().GetProperty("title")!.GetValue(card)
             .Should().Be("✅ Bill Payment Successful");
     }
+
+    [Fact]
+    public void BuildNoPreviewCard_Should_Set_Title_And_Body()
+    {
+        var card = PreviewCardBuilder.BuildNoPreviewCard();
+
+        card.GetType().GetProperty("title")!.GetValue(card)
+            .Should().Be("Info");
+
+        card.GetType().GetProperty("body")!.GetValue(card)
+            .Should().Be("No preview available.");
+    }
 }
