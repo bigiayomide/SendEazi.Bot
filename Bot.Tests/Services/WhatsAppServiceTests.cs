@@ -12,7 +12,9 @@ namespace Bot.Tests.Services;
 public class WhatsAppServiceTests
 {
     private static (WhatsAppService svc, MockHttpMessageHandler handler) CreateService(
-        Func<HttpRequestMessage, HttpResponseMessage> handlerFunc, TimeSpan? ttl = null)
+        Func<HttpRequestMessage, HttpResponseMessage> handlerFunc,
+        TimeSpan? ttl = null,
+        ILogger<WhatsAppService>? logger = null)
     {
         var handler = new MockHttpMessageHandler(handlerFunc);
         var client = new HttpClient(handler);
@@ -23,8 +25,8 @@ public class WhatsAppServiceTests
             AccessToken = "token",
             EphemeralTtl = ttl ?? TimeSpan.Zero
         });
-        var logger = new LoggerFactory().CreateLogger<WhatsAppService>();
-        var svc = new WhatsAppService(client, opts, logger);
+        var svcLogger = logger ?? new LoggerFactory().CreateLogger<WhatsAppService>();
+        var svc = new WhatsAppService(client, opts, svcLogger);
         return (svc, handler);
     }
 
@@ -197,5 +199,18 @@ public class WhatsAppServiceTests
         var act = () => svc.SendTextMessageAsync("111", "fail");
 
         await act.Should().ThrowAsync<HttpRequestException>();
+    }
+
+    [Fact]
+    public async Task DeleteMessageAsync_Logs_Error_On_Failure()
+    {
+        var logger = new ListLogger();
+        var (svc, _) = CreateService(_ => new HttpResponseMessage(HttpStatusCode.InternalServerError), logger: logger);
+
+        await svc.DeleteMessageAsync("badId");
+
+        logger.Entries.Should().ContainSingle(e => e.Level == LogLevel.Error &&
+            e.Message.Contains("Failed to delete WhatsApp message") &&
+            e.Message.Contains("badId"));
     }
 }
