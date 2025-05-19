@@ -1,6 +1,129 @@
+using System.Text.Json;
+using Bot.Core.Providers;
+using Bot.Core.Services;
+using Bot.Core.StateMachine;
+using Bot.Core.StateMachine.Consumers.Payments;
+using Bot.Infrastructure.Data;
+using Bot.Shared.DTOs;
+using Bot.Shared.Enums;
+using Bot.Shared.Models;
+using MassTransit.Testing;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
+using Moq;
+
 namespace Bot.Tests.Integration;
 
-public class RecurringFlowTests
+public class RecurringFlowTests : IAsyncLifetime
 {
-    
+    private ServiceProvider _provider = null!;
+    private ITestHarness _harness = null!;
+    private ISagaStateMachineTestHarness<BotStateMachine, BotState> _sagaHarness = null!;
+    private ApplicationDbContext _db = null!;
+    private readonly Mock<IConversationStateService> _stateSvc = new();
+    private readonly Mock<IBankProvider> _bank = new();
+
+    public async Task InitializeAsync()
+    {
+        var services = new ServiceCollection();
+
+        services.AddInMemoryDb("recurring-flow");
+        services.AddMassTransitTestHarness(cfg =>
+        {
+            cfg.AddSagaStateMachine<BotStateMachine, BotState>()
+               .InMemoryRepository();
+            cfg.AddConsumer<RecurringCmdConsumer>();
+            cfg.AddConsumer<TransferCmdConsumer>();
+        });
+
+        services.AddScoped<RecurringCmdConsumer>();
+        services.AddScoped<TransferCmdConsumer>();
+
+        services.AddSingleton<IConversationStateService>(_stateSvc.Object);
+        services.AddSingleton<IReferenceGenerator>(sp =>
+        {
+            var m = new Mock<IReferenceGenerator>();
+            m.Setup(r => r.GenerateTransferRef(It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<string>()))
+                .Returns("REC-REF");
+            return m.Object;
+        });
+        services.AddSingleton<IBankProviderFactory>(sp =>
+        {
+            var mock = new Mock<IBankProviderFactory>();
+            mock.Setup(f => f.GetProviderAsync(It.IsAny<Guid>(), It.IsAny<Guid?>()))
+                .ReturnsAsync(_bank.Object);
+            return mock.Object;
+        });
+
+        _provider = services.BuildServiceProvider(true);
+        _harness = _provider.GetRequiredService<ITestHarness>();
+        _sagaHarness = _provider.GetRequiredService<ISagaStateMachineTestHarness<BotStateMachine, BotState>>();
+        _db = _provider.GetRequiredService<ApplicationDbContext>();
+
+        _stateSvc.Setup(x => x.SetStateAsync(It.IsAny<Guid>(), It.IsAny<string>())).Returns(Task.CompletedTask);
+        _stateSvc.Setup(x => x.SetUserAsync(It.IsAny<Guid>(), It.IsAny<Guid>())).Returns(Task.CompletedTask);
+
+        await _harness.Start();
+    }
+
+    public async Task DisposeAsync()
+    {
+        if (_harness != null) await _harness.Stop();
+        if (_provider is IAsyncDisposable disp) await disp.DisposeAsync();
+    }
+
+    private async Task<Guid> SeedReadyAsync(Guid userId)
+    {
+        await _db.SeedUserAsync(userId);
+        await _db.SeedMandateAsync(userId);
+        var sid = NewId.NextGuid();
+
+        await _harness.Bus.Publish(new UserIntentDetected(sid, IntentType.Signup,
+            SignupPayload:new SignupPayload("User", "+2348000000000", "12345678901", "12345678901")));
+        await _sagaHarness.Exists(sid, x => x.NinValidating, TimeSpan.FromSeconds(5));
+
+        await _harness.Bus.Publish(new NinVerified(sid, "12345678901"));
+        await _sagaHarness.Exists(sid, x => x.AskBvn, TimeSpan.FromSeconds(5));
+
+        await _harness.Bus.Publish(new BvnProvided(sid, "12345678901"));
+        await _sagaHarness.Exists(sid, x => x.BvnValidating, TimeSpan.FromSeconds(5));
+
+        await _harness.Bus.Publish(new BvnVerified(sid, "12345678901"));
+        await _sagaHarness.Exists(sid, x => x.AwaitingKyc, TimeSpan.FromSeconds(5));
+
+        await _harness.Bus.Publish(new SignupSucceeded(sid, userId));
+        await _sagaHarness.Exists(sid, x => x.AwaitingBankLink, TimeSpan.FromSeconds(5));
+
+        await _harness.Bus.Publish(new MandateReadyToDebit(sid, "mandate", "Mono"));
+        await _sagaHarness.Exists(sid, x => x.AwaitingPinSetup, TimeSpan.FromSeconds(5));
+
+        await _harness.Bus.Publish(new BankLinkSucceeded(sid));
+        await _sagaHarness.Exists(sid, x => x.AwaitingPinValidate, TimeSpan.FromSeconds(5));
+
+        await _harness.Bus.Publish(new PinSet(sid));
+        await _sagaHarness.Exists(sid, x => x.Ready, TimeSpan.FromSeconds(5));
+        return sid;
+    }
+
+    [Fact]
+    public async Task Should_Schedule_Recurring_And_Publish_Transfer()
+    {
+        var userId = Guid.NewGuid();
+        var sid = await SeedReadyAsync(userId);
+
+        var transfer = new TransferPayload("2222", "999", 100, "Recurring");
+        var saga = _sagaHarness.Sagas.Contains(sid);
+        saga.PendingIntentType = IntentType.Transfer;
+        saga.PendingIntentPayload = JsonSerializer.Serialize(new UserIntentDetected(sid, IntentType.Transfer, TransferPayload: transfer));
+
+        await _harness.Bus.Publish(new RecurringCmd(sid,
+            new RecurringPayload(Guid.NewGuid(), transfer, "* * * * *")));
+
+        await _harness.InactivityTask;
+
+        Assert.True(await _harness.Published.Any<RecurringExecuted>(x => x.Context.Message.CorrelationId == sid));
+        Assert.True(await _harness.Published.Any<TransferCmd>(x => x.Context.Message.CorrelationId == sid));
+        Assert.Single(_db.RecurringTransfers);
+        Assert.Single(_db.Payees);
+    }
 }
