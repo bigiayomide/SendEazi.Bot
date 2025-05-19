@@ -12,7 +12,9 @@ public class ConversationStatePayloadFilter<T>(IConversationStateService service
         return next.Send(context);
     }
 
-    public void Probe(ProbeContext context) { }
+    public void Probe(ProbeContext context)
+    {
+    }
 }
 
 public class ConversationStateConsumeFilter<T>(IConversationStateService conversationStateService)

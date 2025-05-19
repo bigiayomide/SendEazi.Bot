@@ -7,18 +7,16 @@ using MassTransit;
 using MassTransit.Testing;
 using Microsoft.Extensions.DependencyInjection;
 using Moq;
-using Xunit;
 
 namespace Bot.Tests.StateMachine;
 
 public class DirectDebitMandateStateMachineTests : IAsyncLifetime
 {
-    private ServiceProvider _provider = null!;
-    private ITestHarness _harness = null!;
-    private ISagaStateMachineTestHarness<DirectDebitMandateStateMachine, DirectDebitMandateState> _sagaHarness = null!;
-
     private readonly Mock<IBankProvider> _bankProvider = new();
     private readonly Mock<IUserService> _userService = new();
+    private ITestHarness _harness = null!;
+    private ServiceProvider _provider = null!;
+    private ISagaStateMachineTestHarness<DirectDebitMandateStateMachine, DirectDebitMandateState> _sagaHarness = null!;
 
     public async Task InitializeAsync()
     {
@@ -28,16 +26,19 @@ public class DirectDebitMandateStateMachineTests : IAsyncLifetime
             .AddMassTransitTestHarness(cfg =>
             {
                 cfg.AddSagaStateMachine<DirectDebitMandateStateMachine, DirectDebitMandateState>()
-                   .InMemoryRepository();
+                    .InMemoryRepository();
             })
             .BuildServiceProvider(true);
 
         _harness = _provider.GetRequiredService<ITestHarness>();
-        _sagaHarness = _provider.GetRequiredService<ISagaStateMachineTestHarness<DirectDebitMandateStateMachine, DirectDebitMandateState>>();
+        _sagaHarness = _provider
+            .GetRequiredService<
+                ISagaStateMachineTestHarness<DirectDebitMandateStateMachine, DirectDebitMandateState>>();
 
         _bankProvider.Setup(x => x.CreateCustomerAsync(It.IsAny<User>())).ReturnsAsync("cust");
-        _bankProvider.Setup(x => x.CreateMandateAsync(It.IsAny<User>(), It.IsAny<string>(), It.IsAny<decimal>(), It.IsAny<string>()))
-                     .ReturnsAsync("mandate-123");
+        _bankProvider.Setup(x =>
+                x.CreateMandateAsync(It.IsAny<User>(), It.IsAny<string>(), It.IsAny<decimal>(), It.IsAny<string>()))
+            .ReturnsAsync("mandate-123");
 
         await _harness.Start();
     }

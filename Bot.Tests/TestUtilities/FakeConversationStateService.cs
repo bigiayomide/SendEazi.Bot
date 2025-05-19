@@ -1,11 +1,13 @@
-using System;
 using Bot.Core.Services;
 
 namespace Bot.Tests.TestUtilities;
 
 public class FakeConversationStateService : IConversationStateService
 {
-    public Task<string> GetStateAsync(Guid sessionId) => Task.FromResult("Ready");
+    public Task<string> GetStateAsync(Guid sessionId)
+    {
+        return Task.FromResult("Ready");
+    }
 
     public Task SetStateAsync(Guid sessionId, string state)
     {
@@ -20,7 +22,8 @@ public class FakeConversationStateService : IConversationStateService
     }
 
     public Task<ConversationSession> GetOrCreateSessionAsync(string phone)
-        => Task.FromResult(new ConversationSession
+    {
+        return Task.FromResult(new ConversationSession
         {
             PhoneNumber = phone,
             SessionId = Guid.NewGuid(),
@@ -28,9 +31,11 @@ public class FakeConversationStateService : IConversationStateService
             UserId = Guid.NewGuid(),
             LastUpdatedUtc = DateTime.UtcNow
         });
+    }
 
     public Task<ConversationSession?> GetSessionByUserAsync(Guid userId)
-        => Task.FromResult<ConversationSession?>(new ConversationSession
+    {
+        return Task.FromResult<ConversationSession?>(new ConversationSession
         {
             PhoneNumber = "+2340000000000",
             SessionId = Guid.NewGuid(),
@@ -38,6 +43,7 @@ public class FakeConversationStateService : IConversationStateService
             UserId = userId,
             LastUpdatedUtc = DateTime.UtcNow
         });
+    }
 
     public Task UpdateLastMessageAsync(Guid sessionId, string message)
     {

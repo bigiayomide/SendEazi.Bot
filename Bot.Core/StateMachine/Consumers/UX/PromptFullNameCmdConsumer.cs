@@ -4,7 +4,8 @@ using MassTransit;
 
 namespace Bot.Core.StateMachine.Consumers.UX;
 
-public class PromptFullNameCmdConsumer(IWhatsAppService wa, IConversationStateService sessions) : IConsumer<PromptFullNameCmd>
+public class PromptFullNameCmdConsumer(IWhatsAppService wa, IConversationStateService sessions)
+    : IConsumer<PromptFullNameCmd>
 {
     public async Task Consume(ConsumeContext<PromptFullNameCmd> ctx)
     {

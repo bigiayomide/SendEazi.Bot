@@ -10,7 +10,8 @@ public class NlpFromTextConsumer(INlpService nlp) :
 {
     public async Task Consume(ConsumeContext<OcrResultAvailable> ctx)
     {
-        var result = await nlp.DetectIntentAsync(ctx.Message.CorrelationId, ctx.Message.ExtractedText, ctx.Message.PhoneNumber);
+        var result = await nlp.DetectIntentAsync(ctx.Message.CorrelationId, ctx.Message.ExtractedText,
+            ctx.Message.PhoneNumber);
         await ctx.Publish(result);
     }
 

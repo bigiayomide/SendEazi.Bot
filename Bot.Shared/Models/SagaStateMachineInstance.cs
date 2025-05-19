@@ -1,3 +1,4 @@
+using Bot.Shared.Enums;
 using MassTransit;
 
 namespace Bot.Shared.Models;
@@ -29,15 +30,15 @@ public class BotState : SagaStateMachineInstance
     public Guid SessionId { get; set; }
     public string? PhoneNumber { get; set; }
 
-    public Enums.IntentType? PendingIntentType { get; set; }
+    public IntentType? PendingIntentType { get; set; }
     public string? PendingIntentPayload { get; set; }
 
     public byte[]? RowVersion { get; set; }
-    public Guid CorrelationId { get; set; }
 
     // New fields for resiliency and diagnostics
     public string? PendingPayloadHash { get; set; } // To prevent duplication
     public string? SagaVersion { get; set; } = "v1"; // Version tracking for migrations
     public DateTime? LastIntentHandledAt { get; set; } // Helps with concurrency control
-    public Guid? TimeoutTokenId { get; set; }   // Token for scheduling inactivity timeouts
+    public Guid? TimeoutTokenId { get; set; } // Token for scheduling inactivity timeouts
+    public Guid CorrelationId { get; set; }
 }

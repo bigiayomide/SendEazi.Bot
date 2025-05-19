@@ -1,8 +1,8 @@
 using Bot.Core.Services;
 using Bot.Infrastructure.Data;
+using Bot.Shared;
 using Bot.Shared.Enums;
 using Bot.Shared.Models;
-using Bot.Shared;
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 
@@ -10,10 +10,12 @@ namespace Bot.Tests.Services;
 
 public class MemoServiceTests
 {
-    private static ApplicationDbContext CreateDb(string name) =>
-        new(new DbContextOptionsBuilder<ApplicationDbContext>()
+    private static ApplicationDbContext CreateDb(string name)
+    {
+        return new ApplicationDbContext(new DbContextOptionsBuilder<ApplicationDbContext>()
             .UseInMemoryDatabase(name)
             .Options);
+    }
 
     [Fact]
     public async Task SaveAsync_Should_Create_New_Memo()

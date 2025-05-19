@@ -10,13 +10,13 @@ namespace Bot.Tests.Services;
 public class PinServiceTests
 {
     private readonly ApplicationDbContext _db;
-    private readonly PinService _service;
     private readonly IPasswordHasher<User> _hasher = new PasswordHasher<User>();
+    private readonly PinService _service;
 
     public PinServiceTests()
     {
         var options = new DbContextOptionsBuilder<ApplicationDbContext>()
-            .UseInMemoryDatabase(databaseName: Guid.NewGuid().ToString())
+            .UseInMemoryDatabase(Guid.NewGuid().ToString())
             .Options;
 
         _db = new ApplicationDbContext(options);

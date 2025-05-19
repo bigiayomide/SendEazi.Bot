@@ -4,7 +4,6 @@ using Microsoft.Extensions.Logging;
 using Moq;
 using Quartz;
 using Quartz.Spi;
-using Xunit;
 
 namespace Bot.Tests.BackgroundJobs;
 
@@ -14,7 +13,7 @@ public class SchedulerTests
     {
         var factory = new Mock<ISchedulerFactory>();
         factory.Setup(f => f.GetScheduler(It.IsAny<CancellationToken>()))
-               .ReturnsAsync(scheduler);
+            .ReturnsAsync(scheduler);
 
         var services = new ServiceCollection();
         services.AddSingleton(factory.Object);
@@ -27,13 +26,22 @@ public class SchedulerTests
         var scheduler = new Mock<IScheduler>();
         job = null;
         trigger = null;
+        IJobDetail? capturedJob = null;
+        ITrigger? capturedTrigger = null;
         scheduler.Setup(s => s.ScheduleJob(It.IsAny<IJobDetail>(), It.IsAny<ITrigger>(), It.IsAny<CancellationToken>()))
-                 .Callback<IJobDetail, ITrigger, CancellationToken>((j, t, c) => { job = j; trigger = t; })
-                 .Returns(Task.CompletedTask);
+            .Callback<IJobDetail, ITrigger, CancellationToken>((j, t, _) =>
+            {
+                capturedJob = j;
+                capturedTrigger = t;
+            })
+            .ReturnsAsync(DateTimeOffset.UtcNow);
         scheduler.Setup(s => s.Start(It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
         scheduler.Setup(s => s.Shutdown(It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
+        job = capturedJob;
+        trigger = capturedTrigger;
         return scheduler;
     }
+
     [Fact]
     public async Task BillPayScheduler_Starts_With_Correct_Cron()
     {
@@ -67,6 +75,7 @@ public class SchedulerTests
 
         schedulerMock.Verify(s => s.Shutdown(It.IsAny<CancellationToken>()), Times.Once);
     }
+
     [Fact]
     public async Task FeeSweepScheduler_Starts_With_Correct_Cron()
     {
@@ -100,6 +109,7 @@ public class SchedulerTests
 
         schedulerMock.Verify(s => s.Shutdown(It.IsAny<CancellationToken>()), Times.Once);
     }
+
     [Fact]
     public async Task RecurringTransferScheduler_Starts_With_Correct_Cron()
     {
@@ -133,6 +143,7 @@ public class SchedulerTests
 
         schedulerMock.Verify(s => s.Shutdown(It.IsAny<CancellationToken>()), Times.Once);
     }
+
     [Fact]
     public async Task BudgetAlertScheduler_Starts_With_Correct_Cron()
     {

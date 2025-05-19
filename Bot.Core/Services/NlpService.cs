@@ -1,11 +1,10 @@
 using System.Text.Json;
 using Azure.AI.OpenAI;
-using Bot.Core.StateMachine;
 using Bot.Infrastructure.Configuration;
 using Bot.Shared;
 using Bot.Shared.DTOs;
+using Bot.Shared.Enums;
 using Microsoft.Extensions.Options;
-using OpenAI;
 using OpenAI.Chat;
 
 namespace Bot.Core.Services;
@@ -20,11 +19,13 @@ public interface IChatClientWrapper
     Task<string> CompleteChatAsync(List<ChatMessage> messages, ChatCompletionOptions options);
 }
 
-public class ChatClientWrapper(AzureOpenAIClient chatClient, IOptions<AzureOpenAiOptions> openAiOptions) : IChatClientWrapper
+public class ChatClientWrapper(AzureOpenAIClient chatClient, IOptions<AzureOpenAiOptions> openAiOptions)
+    : IChatClientWrapper
 {
     public async Task<string> CompleteChatAsync(List<ChatMessage> messages, ChatCompletionOptions options)
     {
-        var response = await chatClient.GetChatClient(openAiOptions.Value.DeploymentName).CompleteChatAsync(messages, options);
+        var response = await chatClient.GetChatClient(openAiOptions.Value.DeploymentName)
+            .CompleteChatAsync(messages, options);
         return response.Value.Content.First().Text;
     }
 }
@@ -60,57 +61,71 @@ public class NlpService(
             var intentStr = root.TryGetProperty("intent", out var p) ? p.GetString() : "unknown";
             var intent = intentStr switch
             {
-                "transfer" => Shared.Enums.IntentType.Transfer,
-                "billpay" => Shared.Enums.IntentType.BillPay,
-                "set_goal" => Shared.Enums.IntentType.SetGoal,
-                "schedule_recurring" => Shared.Enums.IntentType.ScheduleRecurring,
-                "memo" => Shared.Enums.IntentType.Memo,
-                "feedback" => Shared.Enums.IntentType.Feedback,
-                "signup" => Shared.Enums.IntentType.Signup,
-                "greeting" => Shared.Enums.IntentType.Greeting,
-                _ => Shared.Enums.IntentType.Unknown
+                "transfer" => IntentType.Transfer,
+                "billpay" => IntentType.BillPay,
+                "set_goal" => IntentType.SetGoal,
+                "schedule_recurring" => IntentType.ScheduleRecurring,
+                "memo" => IntentType.Memo,
+                "feedback" => IntentType.Feedback,
+                "signup" => IntentType.Signup,
+                "greeting" => IntentType.Greeting,
+                _ => IntentType.Unknown
             };
 
             var result = new UserIntentDetected(
                 correlationId,
                 intent,
-                intent == Shared.Enums.IntentType.Transfer && root.TryGetProperty("toAccount", out _) ? new TransferPayload(
-                    root.GetProperty("toAccount").GetString()!,
-                    root.GetProperty("bankCode").GetString()!,
-                    root.GetProperty("amount").GetDecimal(),
-                    root.TryGetProperty("description", out var d) ? d.GetString() : null) : null,
-                intent == Shared.Enums.IntentType.BillPay && root.TryGetProperty("billerCode", out _) ? new BillPayload(
-                    root.GetProperty("billerCode").GetString()!,
-                    root.GetProperty("customerRef").GetString()!,
-                    root.GetProperty("amount").GetDecimal(),
-                    root.TryGetProperty("billerName", out var b) ? b.GetString() : null) : null,
-                intent == Shared.Enums.IntentType.SetGoal && root.TryGetProperty("monthlyLimit", out _) ? new GoalPayload(
-                    Guid.Empty,
-                    root.GetProperty("monthlyLimit").GetDecimal(),
-                    DateOnly.FromDateTime(DateTime.UtcNow),
-                    DateOnly.FromDateTime(DateTime.UtcNow.AddMonths(1))) : null,
-                intent == Shared.Enums.IntentType.ScheduleRecurring && root.TryGetProperty("toAccount", out _) ? new RecurringPayload(
-                    Guid.NewGuid(),
-                    new TransferPayload(
+                intent == IntentType.Transfer && root.TryGetProperty("toAccount", out _)
+                    ? new TransferPayload(
                         root.GetProperty("toAccount").GetString()!,
                         root.GetProperty("bankCode").GetString()!,
                         root.GetProperty("amount").GetDecimal(),
-                        root.TryGetProperty("description", out var r) ? r.GetString() : null),
-                    root.GetProperty("cron").GetString()!) : null,
-                intent == Shared.Enums.IntentType.Memo && root.TryGetProperty("memoText", out _) ? new MemoPayload(
-                    root.GetProperty("transactionId").GetGuid(),
-                    root.GetProperty("memoText").GetString()!,
-                    root.TryGetProperty("receiptUrl", out var u) ? u.GetString() : null) : null,
-                intent == Shared.Enums.IntentType.Feedback && root.TryGetProperty("rating", out _) ? new FeedbackPayload(
-                    root.GetProperty("rating").GetInt32(),
-                    root.GetProperty("comment").GetString()!) : null,
-                intent == Shared.Enums.IntentType.Signup && root.TryGetProperty("fullName", out _) ? new SignupPayload(
-                    root.GetProperty("fullName").GetString()!,
-                    root.GetProperty("phone").GetString()!,
-                    root.GetProperty("nin").GetString()!,
-                    root.GetProperty("bvn").GetString()!) : null,
-                intent == Shared.Enums.IntentType.Greeting ? null : null,
-                intent == Shared.Enums.IntentType.Unknown ? null : null,
+                        root.TryGetProperty("description", out var d) ? d.GetString() : null)
+                    : null,
+                intent == IntentType.BillPay && root.TryGetProperty("billerCode", out _)
+                    ? new BillPayload(
+                        root.GetProperty("billerCode").GetString()!,
+                        root.GetProperty("customerRef").GetString()!,
+                        root.GetProperty("amount").GetDecimal(),
+                        root.TryGetProperty("billerName", out var b) ? b.GetString() : null)
+                    : null,
+                intent == IntentType.SetGoal && root.TryGetProperty("monthlyLimit", out _)
+                    ? new GoalPayload(
+                        Guid.Empty,
+                        root.GetProperty("monthlyLimit").GetDecimal(),
+                        DateOnly.FromDateTime(DateTime.UtcNow),
+                        DateOnly.FromDateTime(DateTime.UtcNow.AddMonths(1)))
+                    : null,
+                intent == IntentType.ScheduleRecurring && root.TryGetProperty("toAccount", out _)
+                    ? new RecurringPayload(
+                        Guid.NewGuid(),
+                        new TransferPayload(
+                            root.GetProperty("toAccount").GetString()!,
+                            root.GetProperty("bankCode").GetString()!,
+                            root.GetProperty("amount").GetDecimal(),
+                            root.TryGetProperty("description", out var r) ? r.GetString() : null),
+                        root.GetProperty("cron").GetString()!)
+                    : null,
+                intent == IntentType.Memo && root.TryGetProperty("memoText", out _)
+                    ? new MemoPayload(
+                        root.GetProperty("transactionId").GetGuid(),
+                        root.GetProperty("memoText").GetString()!,
+                        root.TryGetProperty("receiptUrl", out var u) ? u.GetString() : null)
+                    : null,
+                intent == IntentType.Feedback && root.TryGetProperty("rating", out _)
+                    ? new FeedbackPayload(
+                        root.GetProperty("rating").GetInt32(),
+                        root.GetProperty("comment").GetString()!)
+                    : null,
+                intent == IntentType.Signup && root.TryGetProperty("fullName", out _)
+                    ? new SignupPayload(
+                        root.GetProperty("fullName").GetString()!,
+                        root.GetProperty("phone").GetString()!,
+                        root.GetProperty("nin").GetString()!,
+                        root.GetProperty("bvn").GetString()!)
+                    : null,
+                intent == IntentType.Greeting ? null : null,
+                intent == IntentType.Unknown ? null : null,
                 phoneNumber
             );
 
@@ -123,7 +138,7 @@ public class NlpService(
         catch (Exception e)
         {
             Console.WriteLine(e);
-            return new UserIntentDetected(correlationId, Shared.Enums.IntentType.Unknown);
+            return new UserIntentDetected(correlationId, IntentType.Unknown);
         }
     }
 }

@@ -10,8 +10,8 @@ namespace Bot.Tests.Services;
 
 public class TemplateRenderingServiceTests : IDisposable
 {
-    private readonly string _tempDir;
     private readonly TemplateRenderingService _service;
+    private readonly string _tempDir;
 
     public TemplateRenderingServiceTests()
     {
@@ -78,7 +78,7 @@ public class TemplateRenderingServiceTests : IDisposable
 
         var expected =
             "📄 *Transaction Preview*\n" +
-            $"• Payee: **********\n" +
+            "• Payee: **********\n" +
             $"• Amount: ₦{preview.Amount:N2}\n" +
             $"• Fee: ₦{preview.Fee:N2}\n" +
             $"• New Balance: ₦{preview.NewBalance:N2}\n" +

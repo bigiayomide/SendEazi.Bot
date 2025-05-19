@@ -14,10 +14,9 @@ public class OcrServiceTests
             .ReturnsAsync(new[] { "hello", "world" });
 
         var service = new OcrService(mockClient.Object);
-        await using var ms = new MemoryStream(new byte[] {1,2,3});
+        await using var ms = new MemoryStream(new byte[] { 1, 2, 3 });
         var result = await service.ExtractTextAsync(ms);
 
         result.Should().Be("hello world");
     }
 }
-

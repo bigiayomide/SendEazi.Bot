@@ -1,3 +1,4 @@
+using System.Reflection;
 using System.Text.Json;
 using Bot.Core.StateMachine.Mappers;
 using FluentAssertions;
@@ -11,11 +12,11 @@ public class WebhookToEventMapperTests
     {
         var guid = Guid.NewGuid();
         var json = $$"""
-        {
-            "transaction_ref": "txn:{{guid}}:abcdef123456",
-            "transaction_id": "abc123"
-        }
-        """;
+                     {
+                         "transaction_ref": "txn:{{guid}}:abcdef123456",
+                         "transaction_id": "abc123"
+                     }
+                     """;
 
         var doc = JsonDocument.Parse(json);
         var evt = WebhookToEventMapper.MapTransferSuccess(doc.RootElement, "Mono");
@@ -29,10 +30,10 @@ public class WebhookToEventMapperTests
     {
         var guid = Guid.NewGuid();
         var json = $$"""
-                     {
-            "transaction_ref": "txn:{{guid}}:deadbeefdead"
-        }
-        """;
+                                  {
+                         "transaction_ref": "txn:{{guid}}:deadbeefdead"
+                     }
+                     """;
 
         var doc = JsonDocument.Parse(json);
         var evt = WebhookToEventMapper.MapTransferFailed(doc.RootElement);
@@ -47,11 +48,11 @@ public class WebhookToEventMapperTests
     {
         var guid = Guid.NewGuid();
         var json = $$"""
-        {
-            "transaction_ref": "txn:{{guid}}:abcdefabcdef",
-            "failure_reason": "Insufficient funds"
-        }
-        """;
+                     {
+                         "transaction_ref": "txn:{{guid}}:abcdefabcdef",
+                         "failure_reason": "Insufficient funds"
+                     }
+                     """;
 
         var doc = JsonDocument.Parse(json);
         var evt = WebhookToEventMapper.MapTransferFailed(doc.RootElement);
@@ -64,11 +65,11 @@ public class WebhookToEventMapperTests
     {
         var guid = Guid.NewGuid();
         var json = $$"""
-        {
-            "reference": "mandate:{{guid}}",
-            "mandate_id": "mono-m-123"
-        }
-        """;
+                     {
+                         "reference": "mandate:{{guid}}",
+                         "mandate_id": "mono-m-123"
+                     }
+                     """;
 
         var doc = JsonDocument.Parse(json);
         var evt = WebhookToEventMapper.MapMonoMandate(doc.RootElement);
@@ -83,11 +84,11 @@ public class WebhookToEventMapperTests
     {
         var guid = Guid.NewGuid();
         var json = $$"""
-        {
-            "transaction_ref": "mandate:{{guid}}",
-            "mandate_id": "op-mandate-456"
-        }
-        """;
+                     {
+                         "transaction_ref": "mandate:{{guid}}",
+                         "mandate_id": "op-mandate-456"
+                     }
+                     """;
 
         var doc = JsonDocument.Parse(json);
         var evt = WebhookToEventMapper.MapOnePipeMandate(doc.RootElement);
@@ -101,7 +102,7 @@ public class WebhookToEventMapperTests
     public void GetUserId_Should_Return_EmptyGuid_When_Invalid()
     {
         var result = typeof(WebhookToEventMapper)
-            .GetMethod("GetUserId", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static)!
+            .GetMethod("GetUserId", BindingFlags.NonPublic | BindingFlags.Static)!
             .Invoke(null, ["garbage"]);
 
         result.Should().Be(Guid.Empty);
@@ -112,7 +113,7 @@ public class WebhookToEventMapperTests
     {
         var guid = Guid.NewGuid();
         var result = typeof(WebhookToEventMapper)
-            .GetMethod("GetUserId", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static)!
+            .GetMethod("GetUserId", BindingFlags.NonPublic | BindingFlags.Static)!
             .Invoke(null, [$"txn:{guid}:123abc"]);
 
         result.Should().Be(guid);

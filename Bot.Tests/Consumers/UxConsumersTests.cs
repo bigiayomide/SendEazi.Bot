@@ -1,11 +1,9 @@
 using System.Net;
-using System.Net.Http;
 using Bot.Core.Services;
 using Bot.Core.StateMachine.Consumers.UX;
 using Bot.Infrastructure.Data;
 using Bot.Shared;
 using Bot.Shared.DTOs;
-using Bot.Shared.Enums;
 using Bot.Shared.Models;
 using Bot.Tests.TestUtilities;
 using FluentAssertions;
@@ -34,9 +32,10 @@ public class UxConsumersTests
             services.AddSingleton(userSvc.Object);
         });
 
-        await harness.Bus.Publish(new QuickReplyCmd(userId, "tmpl", new []{"Hello"}));
+        await harness.Bus.Publish(new QuickReplyCmd(userId, "tmpl", new[] { "Hello" }));
 
-        wa.Verify(w => w.SendQuickReplyAsync("234", "Your top payees", It.IsAny<string>(), It.IsAny<string[]>()), Times.Once);
+        wa.Verify(w => w.SendQuickReplyAsync("234", "Your top payees", It.IsAny<string>(), It.IsAny<string[]>()),
+            Times.Once);
         (await harness.Published.Any<QuickReplySent>()).Should().BeTrue();
         await harness.Stop();
     }
@@ -112,7 +111,8 @@ public class UxConsumersTests
         var userId = Guid.NewGuid();
         var harness = await TestContextHelper.BuildTestHarness<ResolveQuickReplyCmdConsumer>();
         var db = harness.Scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-        await db.Payees.AddAsync(new Payee { Id = Guid.NewGuid(), UserId = userId, AccountNumber = "1", BankCode = "001", Nickname = "joe" });
+        await db.Payees.AddAsync(new Payee
+            { Id = Guid.NewGuid(), UserId = userId, AccountNumber = "1", BankCode = "001", Nickname = "joe" });
         await db.SaveChangesAsync();
 
         await harness.Bus.Publish(new ResolveQuickReplyCmd(userId, "joe"));
@@ -132,7 +132,7 @@ public class UxConsumersTests
             services.AddSingleton(tts.Object);
         });
 
-        await harness.Bus.Publish(new RespondWithVoiceCmd(Guid.NewGuid(), "hi", "en"));
+        await harness.Bus.Publish(new RespondWithVoiceCmd(Guid.NewGuid(), "hi"));
 
         (await harness.Published.Any<VoiceReplyReady>()).Should().BeTrue();
         await harness.Stop();
@@ -175,8 +175,17 @@ public class UxConsumersTests
     private class MockHttpMessageHandler : HttpMessageHandler
     {
         private readonly string _content;
-        public MockHttpMessageHandler(string content) => _content = content;
-        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
-            => Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent(_content) });
+
+        public MockHttpMessageHandler(string content)
+        {
+            _content = content;
+        }
+
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request,
+            CancellationToken cancellationToken)
+        {
+            return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
+                { Content = new StringContent(_content) });
+        }
     }
 }

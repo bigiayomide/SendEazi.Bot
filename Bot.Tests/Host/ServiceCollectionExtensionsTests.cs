@@ -3,7 +3,6 @@ using Bot.Host;
 using FluentAssertions;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using System.Collections.Generic;
 
 namespace Bot.Tests.Host;
 

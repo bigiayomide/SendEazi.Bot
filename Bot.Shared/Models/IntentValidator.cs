@@ -1,5 +1,6 @@
 using System.Text.RegularExpressions;
 using Bot.Shared.DTOs;
+using Bot.Shared.Enums;
 
 namespace Bot.Shared.Models;
 
@@ -9,24 +10,30 @@ public static class IntentValidator
     {
         return intent.Intent switch
         {
-            Enums.IntentType.Transfer => ValidateTransfer(intent.TransferPayload!),
-            Enums.IntentType.Memo => ValidateMemo(intent.MemoPayload!),
-            Enums.IntentType.BillPay => ValidateBill(intent.BillPayload!),
-            Enums.IntentType.Signup => ValidateSignup(intent.SignupPayload!),
-            Enums.IntentType.SetGoal => ValidateGoal(intent.GoalPayload!),
-            Enums.IntentType.ScheduleRecurring => ValidateRecurring(intent.RecurringPayload!),
-            Enums.IntentType.Feedback => ValidateFeedback(intent.FeedbackPayload!),
-            Enums.IntentType.Greeting => ValidateGreeting(),
-            Enums.IntentType.Unknown => ValidateUnknown(),
+            IntentType.Transfer => ValidateTransfer(intent.TransferPayload!),
+            IntentType.Memo => ValidateMemo(intent.MemoPayload!),
+            IntentType.BillPay => ValidateBill(intent.BillPayload!),
+            IntentType.Signup => ValidateSignup(intent.SignupPayload!),
+            IntentType.SetGoal => ValidateGoal(intent.GoalPayload!),
+            IntentType.ScheduleRecurring => ValidateRecurring(intent.RecurringPayload!),
+            IntentType.Feedback => ValidateFeedback(intent.FeedbackPayload!),
+            IntentType.Greeting => ValidateGreeting(),
+            IntentType.Unknown => ValidateUnknown(),
             _ => ValidationResult.Fail("❌ Unknown intent provided.")
         };
     }
 
-    public static ValidationResult ValidateGreeting() =>
-        ValidationResult.Fail("👋 Hello! How can I assist you today? You can say things like 'check my balance', 'send money', or 'pay for electricity.'");
+    public static ValidationResult ValidateGreeting()
+    {
+        return ValidationResult.Fail(
+            "👋 Hello! How can I assist you today? You can say things like 'check my balance', 'send money', or 'pay for electricity.'");
+    }
 
-    public static ValidationResult ValidateUnknown() =>
-        ValidationResult.Fail("❓ I'm not sure what you want to do. Please say something like 'check my balance' or 'send ₦5,000 to John.'");
+    public static ValidationResult ValidateUnknown()
+    {
+        return ValidationResult.Fail(
+            "❓ I'm not sure what you want to do. Please say something like 'check my balance' or 'send ₦5,000 to John.'");
+    }
 
     public static ValidationResult ValidateMemo(MemoPayload payload)
     {
@@ -94,7 +101,8 @@ public static class IntentValidator
         else
             result = ValidateTransfer(payload.Transfer);
 
-        if (string.IsNullOrWhiteSpace(payload.Cron) || !Regex.IsMatch(payload.Cron, @"^([0-5]?\d)\s([0-5]?\d)\s([0-2]?\d|\*)\s([1-9]|1[0-2]|\*)\s([0-6]|\*)$"))
+        if (string.IsNullOrWhiteSpace(payload.Cron) || !Regex.IsMatch(payload.Cron,
+                @"^([0-5]?\d)\s([0-5]?\d)\s([0-2]?\d|\*)\s([1-9]|1[0-2]|\*)\s([0-6]|\*)$"))
             result.AddError("⏱️ Please provide a valid CRON schedule in 5-field format (min hour day month week).");
 
         return result;
@@ -117,8 +125,18 @@ public class ValidationResult
     public List<string> Errors { get; set; } = new();
     public string? FirstError => Errors.FirstOrDefault();
 
-    public static ValidationResult Success() => new();
-    public static ValidationResult Fail(params string[] errors) => new() { Errors = errors.ToList() };
+    public static ValidationResult Success()
+    {
+        return new ValidationResult();
+    }
 
-    public void AddError(string message) => Errors.Add(message);
+    public static ValidationResult Fail(params string[] errors)
+    {
+        return new ValidationResult { Errors = errors.ToList() };
+    }
+
+    public void AddError(string message)
+    {
+        Errors.Add(message);
+    }
 }

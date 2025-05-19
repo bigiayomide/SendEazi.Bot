@@ -1,11 +1,8 @@
 using System.Net;
-using System.Net.Http;
-using System.Threading.Tasks;
 using Bot.Core.StateMachine.Helpers;
 using Bot.Tests.TestUtilities;
 using FluentAssertions;
 using Polly.Timeout;
-using Xunit;
 
 namespace Bot.Tests.Helpers;
 
@@ -33,9 +30,9 @@ public class PollyPoliciesTests
     [Fact]
     public async Task ExternalTimeout_Should_Throw_When_Exceeded()
     {
-        Func<Task> act = () => PollyPolicies.ExternalTimeout.ExecuteAsync(async ct =>
+        var act = () => PollyPolicies.ExternalTimeout.ExecuteAsync(async () =>
         {
-            await Task.Delay(TimeSpan.FromSeconds(20), ct);
+            await Task.Delay(TimeSpan.FromSeconds(20));
         });
 
         await act.Should().ThrowAsync<TimeoutRejectedException>();

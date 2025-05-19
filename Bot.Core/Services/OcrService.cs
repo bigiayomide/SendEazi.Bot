@@ -1,6 +1,3 @@
-using Azure;
-using Azure.AI.FormRecognizer.DocumentAnalysis;
-
 namespace Bot.Core.Services;
 
 public interface IOcrService

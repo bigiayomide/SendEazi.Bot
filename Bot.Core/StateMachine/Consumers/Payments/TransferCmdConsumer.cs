@@ -68,10 +68,10 @@ public class TransferCmdConsumer(
         try
         {
             var providerTxnId = await provider.InitiateDebitAsync(
-                mandateId: mandate.MandateId!,
-                amount: tx.Amount,
-                reference: reference,
-                narration: tx.RecipientName
+                mandate.MandateId!,
+                tx.Amount,
+                reference,
+                tx.RecipientName
             );
 
             log.LogInformation("Transfer initiated: {Ref} (ProviderTxnId: {Id})", reference, providerTxnId);

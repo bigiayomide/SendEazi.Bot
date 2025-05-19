@@ -1,5 +1,4 @@
 using Bot.Core.Services;
-using Bot.Core.StateMachine;
 using Bot.Core.StateMachine.Consumers.Payments;
 using Bot.Infrastructure.Data;
 using Bot.Shared.DTOs;
@@ -15,10 +14,12 @@ namespace Bot.Tests.Consumers;
 
 public class TransferWebhookHandlerTests
 {
-    private ApplicationDbContext CreateDb(string name) =>
-        new(new DbContextOptionsBuilder<ApplicationDbContext>()
+    private ApplicationDbContext CreateDb(string name)
+    {
+        return new ApplicationDbContext(new DbContextOptionsBuilder<ApplicationDbContext>()
             .UseInMemoryDatabase(name)
             .Options);
+    }
 
     [Fact]
     public async Task Should_Update_Transaction_And_Publish_PreviewCmd_On_Success()
@@ -54,7 +55,8 @@ public class TransferWebhookHandlerTests
         contextMock.Setup(c => c.Message).Returns(new TransferCompleted(userId, reference));
         contextMock.Setup(c => c.Publish(It.IsAny<PreviewCmd>(), default)).Returns(Task.CompletedTask);
 
-        var handler = new TransferWebhookHandler(db, Mock.Of<IWhatsAppService>(), Mock.Of<ILogger<TransferWebhookHandler>>());
+        var handler =
+            new TransferWebhookHandler(db, Mock.Of<IWhatsAppService>(), Mock.Of<ILogger<TransferWebhookHandler>>());
 
         await handler.Consume(contextMock.Object);
 
@@ -63,7 +65,7 @@ public class TransferWebhookHandlerTests
         updated.CompletedAt.Should().NotBeNull();
 
         contextMock.Verify(c =>
-            c.Publish(It.Is<PreviewCmd>(cmd => cmd.TransactionId == txId), default),
+                c.Publish(It.Is<PreviewCmd>(cmd => cmd.TransactionId == txId), default),
             Times.Once);
     }
 
@@ -101,7 +103,8 @@ public class TransferWebhookHandlerTests
         contextMock.Setup(c => c.Message).Returns(new TransferFailed(userId, "Insufficient funds", reference));
         contextMock.Setup(c => c.Publish(It.IsAny<PreviewCmd>(), default)).Returns(Task.CompletedTask);
 
-        var handler = new TransferWebhookHandler(db, Mock.Of<IWhatsAppService>(), Mock.Of<ILogger<TransferWebhookHandler>>());
+        var handler =
+            new TransferWebhookHandler(db, Mock.Of<IWhatsAppService>(), Mock.Of<ILogger<TransferWebhookHandler>>());
 
         await handler.Consume(contextMock.Object);
 
@@ -110,7 +113,7 @@ public class TransferWebhookHandlerTests
         updated.CompletedAt.Should().NotBeNull();
 
         contextMock.Verify(c =>
-            c.Publish(It.Is<PreviewCmd>(cmd => cmd.TransactionId == txId), default),
+                c.Publish(It.Is<PreviewCmd>(cmd => cmd.TransactionId == txId), default),
             Times.Never);
     }
 
@@ -121,7 +124,8 @@ public class TransferWebhookHandlerTests
         var context = Mock.Of<ConsumeContext<TransferCompleted>>(c =>
             c.Message == new TransferCompleted(Guid.NewGuid(), "txn:missing"));
 
-        var handler = new TransferWebhookHandler(db, Mock.Of<IWhatsAppService>(), Mock.Of<ILogger<TransferWebhookHandler>>());
+        var handler =
+            new TransferWebhookHandler(db, Mock.Of<IWhatsAppService>(), Mock.Of<ILogger<TransferWebhookHandler>>());
 
         var act = async () => await handler.Consume(context);
 

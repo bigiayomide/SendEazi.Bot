@@ -1,7 +1,7 @@
-using Bot.Shared.Models;
-using Bot.Shared.Enums;
-using Bot.Shared.DTOs;
 using Bot.Shared;
+using Bot.Shared.DTOs;
+using Bot.Shared.Enums;
+using Bot.Shared.Models;
 using FluentAssertions;
 
 namespace Bot.Tests.Models;
@@ -15,7 +15,9 @@ public class IntentValidatorTests
 
         result.IsValid.Should().BeFalse();
         result.Errors.Should().ContainSingle()
-            .Which.Should().Be("\uD83D\uDC4B Hello! How can I assist you today? You can say things like 'check my balance', 'send money', or 'pay for electricity.'");
+            .Which.Should()
+            .Be(
+                "\uD83D\uDC4B Hello! How can I assist you today? You can say things like 'check my balance', 'send money', or 'pay for electricity.'");
     }
 
     [Fact]
@@ -25,7 +27,9 @@ public class IntentValidatorTests
 
         result.IsValid.Should().BeFalse();
         result.Errors.Should().ContainSingle()
-            .Which.Should().Be("\u2753 I'm not sure what you want to do. Please say something like 'check my balance' or 'send \u20A65,000 to John.'");
+            .Which.Should()
+            .Be(
+                "\u2753 I'm not sure what you want to do. Please say something like 'check my balance' or 'send \u20A65,000 to John.'");
     }
 
     [Fact]
@@ -170,7 +174,8 @@ public class IntentValidatorTests
 
         result.IsValid.Should().BeFalse();
         result.Errors.Should().Contain("\uD83D\uDCCB Please provide transfer details for the recurring schedule.")
-            .And.Contain("\u23F1\uFE0F Please provide a valid CRON schedule in 5-field format (min hour day month week).");
+            .And.Contain(
+                "\u23F1\uFE0F Please provide a valid CRON schedule in 5-field format (min hour day month week).");
     }
 
     [Fact]
@@ -212,7 +217,7 @@ public class IntentValidatorTests
     public void ValidateIntent_Should_Use_SpecificValidator()
     {
         var payload = new TransferPayload("1234567890", "044", 1000, null);
-        var intent = new UserIntentDetected(Guid.NewGuid(), IntentType.Transfer, TransferPayload: payload);
+        var intent = new UserIntentDetected(Guid.NewGuid(), IntentType.Transfer, payload);
 
         var result = IntentValidator.ValidateIntent(intent);
 

@@ -21,7 +21,7 @@ public class TransactionToPreviewMapperTests
 
         dynamic result = TransactionToPreviewMapper.ToCardTemplate(tx);
 
-        string expectedDate = tx.CreatedAt.ToLocalTime().ToString("dd MMM, HH:mm");
+        var expectedDate = tx.CreatedAt.ToLocalTime().ToString("dd MMM, HH:mm");
 
         ((string)result.Amount).Should().Be("1,234.50 NGN");
         ((string)result.Date).Should().Be(expectedDate);

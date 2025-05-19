@@ -2,7 +2,6 @@ using System.ClientModel;
 using Azure;
 using Azure.AI.FormRecognizer.DocumentAnalysis;
 using Azure.AI.OpenAI;
-using Azure.Identity;
 using Bot.Core.Models;
 using Bot.Core.Providers;
 using Bot.Core.Services;
@@ -14,15 +13,12 @@ using Bot.Core.StateMachine.Consumers.UX;
 using Bot.Host.BackgroundJobs;
 using Bot.Infrastructure.Configuration;
 using Bot.Infrastructure.Data;
-using Bot.Core.StateMachine.Helpers;
 using Bot.Shared.Models;
 using MassTransit;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using Npgsql;
-using OpenAI;
-using OpenAI.Chat;
 using Quartz;
 using Quartz.Impl;
 using Quartz.Spi;
@@ -73,13 +69,11 @@ public static class ServiceCollectionExtensions
             .AddScoped<IDocumentAnalysisClient>(sp =>
             {
                 var config = sp.GetRequiredService<IOptions<FormRecognizerOptions>>().Value;
-                var client = new DocumentAnalysisClient(new Uri(config.Endpoint), new AzureKeyCredential(config.ApiKey));
+                var client =
+                    new DocumentAnalysisClient(new Uri(config.Endpoint), new AzureKeyCredential(config.ApiKey));
                 return new DocumentAnalysisClientWrapper(client);
             })
-            .AddStackExchangeRedisCache(options =>
-            {
-                options.Configuration = cfg.GetConnectionString("Redis");
-            });
+            .AddStackExchangeRedisCache(options => { options.Configuration = cfg.GetConnectionString("Redis"); });
 
         services.Configure<AzureOpenAiOptions>(cfg.GetSection("AzureOpenAI"));
         services.AddScoped<AzureOpenAIClient>(sp =>
@@ -103,19 +97,19 @@ public static class ServiceCollectionExtensions
         services.AddScoped<ITextToSpeechService, TextToSpeechService>();
 
         services.Configure<MonoOptions>(cfg.GetSection("Mono"));
-services.AddHttpClient<MonoBankProvider>()
-    .SetHandlerLifetime(TimeSpan.FromMinutes(5));
+        services.AddHttpClient<MonoBankProvider>()
+            .SetHandlerLifetime(TimeSpan.FromMinutes(5));
         services.Configure<OnePipeOptions>(cfg.GetSection("OnePipe"));
-services.AddHttpClient<OnePipeBankProvider>()
-    .SetHandlerLifetime(TimeSpan.FromMinutes(5));
+        services.AddHttpClient<OnePipeBankProvider>()
+            .SetHandlerLifetime(TimeSpan.FromMinutes(5));
         services.AddScoped<IBankProviderFactory, BankProviderFactory>();
 
 
         services.Configure<WhatsAppOptions>(cfg.GetSection("WhatsApp"));
         services.Configure<PromptSettings>(cfg.GetSection("PromptSettings"));
-        
+
         services.AddHttpClient<IWhatsAppService, WhatsAppService>()
-    .SetHandlerLifetime(TimeSpan.FromMinutes(5));
+            .SetHandlerLifetime(TimeSpan.FromMinutes(5));
         services.Configure<SmsOptions>(cfg.GetSection("Sms"));
         services.AddScoped<ITwilioMessageSender, TwilioMessageSender>();
         services.AddScoped<ISmsBackupService, SmsBackupService>();
@@ -129,7 +123,7 @@ services.AddHttpClient<OnePipeBankProvider>()
         // services.AddSingleton<BudgetAlertJob>();
         // services.AddSingleton(new JobSchedule(typeof(BudgetAlertJob), cfg["Schedules:BudgetAlert"]));
         services.AddHostedService<QuartzHostedService>();
-        
+
         var connectionString = cfg.GetConnectionString("MassTransitConnection");
         ConfigurePostgresTransport(services, connectionString);
         services.AddMassTransit(x =>
@@ -150,7 +144,7 @@ services.AddHttpClient<OnePipeBankProvider>()
                     r.ExistingDbContext<BotStateDbContext>();
                     r.UsePostgres();
                 });
-            
+
             x.SetEntityFrameworkSagaRepositoryProvider(r =>
             {
                 r.ExistingDbContext<BotStateDbContext>();
@@ -167,15 +161,15 @@ services.AddHttpClient<OnePipeBankProvider>()
             //     sbfCfg.Host(cfg["AzureSB"]);
             //     sbfCfg.ConfigureEndpoints(ctx);
             // });
-            
+
             x.UsingPostgres((context, cfg) =>
             {
                 cfg.UseSqlMessageScheduler();
-            
+
                 cfg.UseJobSagaPartitionKeyFormatters();
-            
+
                 cfg.AutoStart = true;
-            
+
                 cfg.ConfigureEndpoints(context);
             });
 
@@ -184,7 +178,7 @@ services.AddHttpClient<OnePipeBankProvider>()
 
         return services;
     }
-    
+
     private static IServiceCollection ConfigurePostgresTransport(IServiceCollection services, string? connectionString,
         bool create = true,
         bool delete = false)
@@ -214,7 +208,6 @@ services.AddHttpClient<OnePipeBankProvider>()
 
         return services;
     }
-
 }
 
 public record JobSchedule(Type JobType, string CronExpression);

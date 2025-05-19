@@ -47,12 +47,9 @@ public class TimeoutExpired : CorrelatedBy<Guid>
     public Guid CorrelationId { get; set; }
 }
 
-
-
 public record TransferRequested(Guid CorrelationId, TransferPayload Payload, Guid? BankAccountId = null);
 
 public record TransferFailed(Guid CorrelationId, string Reason, string Reference);
-
 
 public record BillPaid(
     Guid CorrelationId,
@@ -118,4 +115,5 @@ public record OcrResultAvailable(Guid CorrelationId, string ExtractedText, strin
 
 public record VoiceReplyReady(Guid CorrelationId, Stream AudioStream);
 
-public record IntentHandledEvent(Guid CorrelationId, string PhoneNumber,string Intent ,DateTime Timestamp): CorrelatedBy<Guid>;
+public record IntentHandledEvent(Guid CorrelationId, string PhoneNumber, string Intent, DateTime Timestamp)
+    : CorrelatedBy<Guid>;

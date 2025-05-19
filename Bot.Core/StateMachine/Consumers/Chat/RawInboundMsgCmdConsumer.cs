@@ -5,7 +5,7 @@ using Microsoft.Extensions.Logging;
 
 namespace Bot.Core.StateMachine.Consumers.Chat;
 
-public  class RawInboundMsgCmdConsumer(IConversationStateService session, ILogger<RawInboundMsgCmdConsumer> log)
+public class RawInboundMsgCmdConsumer(IConversationStateService session, ILogger<RawInboundMsgCmdConsumer> log)
     : IConsumer<RawInboundMsgCmd>
 {
     public async Task Consume(ConsumeContext<RawInboundMsgCmd> ctx)

@@ -23,7 +23,8 @@ public class ChatConsumersTests
         var enc = new Mock<IEncryptionService>();
         enc.Setup(e => e.Decrypt("bvn")).Returns("12345678901");
         var userSvc = new Mock<IUserService>();
-        userSvc.Setup(u => u.GetByIdAsync(userId)).ReturnsAsync(new User { Id = userId, PhoneNumber = "234", FullName = "Joe", BVNEnc = "bvn" });
+        userSvc.Setup(u => u.GetByIdAsync(userId)).ReturnsAsync(new User
+            { Id = userId, PhoneNumber = "234", FullName = "Joe", BVNEnc = "bvn" });
 
         var harness = await TestContextHelper.BuildTestHarness<BankLinkCmdConsumer>(services =>
         {
@@ -60,7 +61,8 @@ public class ChatConsumersTests
     {
         var userId = Guid.NewGuid();
         var nlp = new Mock<INlpService>();
-        nlp.Setup(n => n.DetectIntentAsync(userId, "hi", "+234")).ReturnsAsync(new UserIntentDetected(userId, IntentType.Greeting));
+        nlp.Setup(n => n.DetectIntentAsync(userId, "hi", "+234"))
+            .ReturnsAsync(new UserIntentDetected(userId, IntentType.Greeting));
 
         var harness = await TestContextHelper.BuildTestHarness<NlpFromTextConsumer>(services =>
         {
@@ -118,7 +120,8 @@ public class ChatConsumersTests
     public async Task RawInboundMsg_Should_Publish_FullNameProvided()
     {
         var sessionSvc = new Mock<IConversationStateService>();
-        var session = new ConversationSession { SessionId = Guid.NewGuid(), UserId = Guid.NewGuid(), PhoneNumber = "+234" };
+        var session = new ConversationSession
+            { SessionId = Guid.NewGuid(), UserId = Guid.NewGuid(), PhoneNumber = "+234" };
         sessionSvc.Setup(s => s.GetOrCreateSessionAsync("+234"))
             .ReturnsAsync(session);
         sessionSvc.Setup(s => s.GetStateAsync(session.SessionId)).ReturnsAsync("AskFullName");
@@ -159,7 +162,8 @@ public class ChatConsumersTests
     public async Task SignupCmd_Should_Publish_Success()
     {
         var svc = new Mock<IUserService>();
-        svc.Setup(s => s.CreateAsync(It.IsAny<Guid>(), It.IsAny<SignupPayload>())).ReturnsAsync(new User { Id = Guid.NewGuid() });
+        svc.Setup(s => s.CreateAsync(It.IsAny<Guid>(), It.IsAny<SignupPayload>()))
+            .ReturnsAsync(new User { Id = Guid.NewGuid() });
 
         var harness = await TestContextHelper.BuildTestHarness<SignupCmdConsumer>(services =>
         {

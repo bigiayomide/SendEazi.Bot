@@ -1,6 +1,5 @@
 using Bot.Core.Services;
 using Bot.Core.StateMachine;
-using Bot.Infrastructure.Data;
 using Bot.Shared;
 using Bot.Shared.DTOs;
 using Bot.Shared.Enums;
@@ -15,10 +14,10 @@ namespace Bot.Tests.Integration;
 
 public class OnboardingFlowTests : IAsyncLifetime
 {
-    private ServiceProvider _provider = null!;
-    private ITestHarness _harness = null!;
-    private ISagaStateMachineTestHarness<BotStateMachine, BotState> _sagaHarness = null!;
     private readonly Mock<IConversationStateService> _stateSvc = new();
+    private ITestHarness _harness = null!;
+    private ServiceProvider _provider = null!;
+    private ISagaStateMachineTestHarness<BotStateMachine, BotState> _sagaHarness = null!;
 
     public async Task InitializeAsync()
     {
@@ -28,7 +27,7 @@ public class OnboardingFlowTests : IAsyncLifetime
         services.AddMassTransitTestHarness(cfg =>
         {
             cfg.AddSagaStateMachine<BotStateMachine, BotState>()
-               .InMemoryRepository();
+                .InMemoryRepository();
         });
 
         services.AddSingleton<IConversationStateService>(_stateSvc.Object);

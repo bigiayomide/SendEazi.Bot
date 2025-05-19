@@ -9,10 +9,12 @@ namespace Bot.Tests.Services;
 
 public class NudgeServiceTests
 {
-    private static ApplicationDbContext CreateDb(string name) =>
-        new(new DbContextOptionsBuilder<ApplicationDbContext>()
+    private static ApplicationDbContext CreateDb(string name)
+    {
+        return new ApplicationDbContext(new DbContextOptionsBuilder<ApplicationDbContext>()
             .UseInMemoryDatabase(name)
             .Options);
+    }
 
     [Fact]
     public async Task RequestNudgeAsync_Should_Persist_Nudge()
@@ -41,9 +43,21 @@ public class NudgeServiceTests
         var now = DateTime.UtcNow;
 
         db.Nudges.AddRange(
-            new Nudge { Id = Guid.NewGuid(), UserId = Guid.NewGuid(), Content = "a", ScheduledAt = now.AddMinutes(-1), IsSent = false, CreatedAt = now },
-            new Nudge { Id = Guid.NewGuid(), UserId = Guid.NewGuid(), Content = "b", ScheduledAt = now.AddMinutes(5), IsSent = false, CreatedAt = now },
-            new Nudge { Id = Guid.NewGuid(), UserId = Guid.NewGuid(), Content = "c", ScheduledAt = now.AddMinutes(-2), IsSent = true, CreatedAt = now });
+            new Nudge
+            {
+                Id = Guid.NewGuid(), UserId = Guid.NewGuid(), Content = "a", ScheduledAt = now.AddMinutes(-1),
+                IsSent = false, CreatedAt = now
+            },
+            new Nudge
+            {
+                Id = Guid.NewGuid(), UserId = Guid.NewGuid(), Content = "b", ScheduledAt = now.AddMinutes(5),
+                IsSent = false, CreatedAt = now
+            },
+            new Nudge
+            {
+                Id = Guid.NewGuid(), UserId = Guid.NewGuid(), Content = "c", ScheduledAt = now.AddMinutes(-2),
+                IsSent = true, CreatedAt = now
+            });
         await db.SaveChangesAsync();
 
         var results = service.GetDueNudgesAsync(now).ToList();

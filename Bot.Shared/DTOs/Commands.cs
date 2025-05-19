@@ -49,14 +49,16 @@ public record PromptFullNameCmd(Guid CorrelationId);
 
 public class PromptNinCmd
 {
-    public Guid CorrelationId { get; set; }
-
-    public PromptNinCmd() {} // <- required if using object initializer
+    public PromptNinCmd()
+    {
+    } // <- required if using object initializer
 
     public PromptNinCmd(Guid correlationId)
     {
         CorrelationId = correlationId;
     }
+
+    public Guid CorrelationId { get; set; }
 }
 
 public record PromptBvnCmd(Guid CorrelationId);

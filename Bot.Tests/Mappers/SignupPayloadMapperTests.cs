@@ -1,5 +1,4 @@
 using Bot.Core.StateMachine.Mappers;
-using Bot.Shared;
 using Bot.Shared.Models;
 using FluentAssertions;
 

@@ -17,40 +17,11 @@ namespace Bot.Tests.Integration;
 
 public class BillPayFlowTests : IAsyncLifetime
 {
-    private ServiceProvider _provider = null!;
-    private ITestHarness _harness = null!;
-    private ISagaStateMachineTestHarness<BotStateMachine, BotState> _sagaHarness = null!;
-    private ApplicationDbContext _db = null!;
     private readonly Mock<IConversationStateService> _stateSvc = new();
-
-    private class FakeBillPayService : IBillPayService
-    {
-        private readonly ApplicationDbContext _db;
-        public bool ShouldFail { get; set; }
-
-        public FakeBillPayService(ApplicationDbContext db) => _db = db;
-
-        public Task<IReadOnlyList<BillPayment>> ProcessDueBillPaymentsAsync() =>
-            Task.FromResult<IReadOnlyList<BillPayment>>(Array.Empty<BillPayment>());
-
-        public async Task<BillPayment> PayBillAsync(Guid userId, string billerCode, decimal amount, DateTime dueDate)
-        {
-            var bill = new BillPayment
-            {
-                Id = Guid.NewGuid(),
-                UserId = userId,
-                Biller = Enum.Parse<BillerEnum>(billerCode),
-                Amount = amount,
-                DueDate = dueDate,
-                IsPaid = !ShouldFail,
-                CreatedAt = DateTime.UtcNow,
-                PaidAt = ShouldFail ? null : DateTime.UtcNow
-            };
-            _db.BillPayments.Add(bill);
-            await _db.SaveChangesAsync();
-            return bill;
-        }
-    }
+    private ApplicationDbContext _db = null!;
+    private ITestHarness _harness = null!;
+    private ServiceProvider _provider = null!;
+    private ISagaStateMachineTestHarness<BotStateMachine, BotState> _sagaHarness = null!;
 
     public async Task InitializeAsync()
     {
@@ -60,7 +31,7 @@ public class BillPayFlowTests : IAsyncLifetime
         services.AddMassTransitTestHarness(cfg =>
         {
             cfg.AddSagaStateMachine<BotStateMachine, BotState>()
-               .InMemoryRepository();
+                .InMemoryRepository();
             cfg.AddConsumer<BillPayCmdConsumer>();
         });
 
@@ -158,5 +129,40 @@ public class BillPayFlowTests : IAsyncLifetime
         Assert.NotNull(bill);
         Assert.False(bill!.IsPaid);
         Assert.True(await _harness.Published.Any<BillPayFailed>(x => x.Context.Message.CorrelationId == sid));
+    }
+
+    private class FakeBillPayService : IBillPayService
+    {
+        private readonly ApplicationDbContext _db;
+
+        public FakeBillPayService(ApplicationDbContext db)
+        {
+            _db = db;
+        }
+
+        public bool ShouldFail { get; set; }
+
+        public Task<IReadOnlyList<BillPayment>> ProcessDueBillPaymentsAsync()
+        {
+            return Task.FromResult<IReadOnlyList<BillPayment>>(Array.Empty<BillPayment>());
+        }
+
+        public async Task<BillPayment> PayBillAsync(Guid userId, string billerCode, decimal amount, DateTime dueDate)
+        {
+            var bill = new BillPayment
+            {
+                Id = Guid.NewGuid(),
+                UserId = userId,
+                Biller = Enum.Parse<BillerEnum>(billerCode),
+                Amount = amount,
+                DueDate = dueDate,
+                IsPaid = !ShouldFail,
+                CreatedAt = DateTime.UtcNow,
+                PaidAt = ShouldFail ? null : DateTime.UtcNow
+            };
+            _db.BillPayments.Add(bill);
+            await _db.SaveChangesAsync();
+            return bill;
+        }
     }
 }

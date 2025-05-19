@@ -4,7 +4,6 @@ using Bot.Core.Services;
 using Bot.Infrastructure.Data;
 using Bot.Shared;
 using Bot.Shared.Enums;
-using Bot.Shared.Models;
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 
@@ -12,10 +11,12 @@ namespace Bot.Tests.Services;
 
 public class UserServiceTests
 {
-    private static ApplicationDbContext CreateDb(string name) =>
-        new(new DbContextOptionsBuilder<ApplicationDbContext>()
+    private static ApplicationDbContext CreateDb(string name)
+    {
+        return new ApplicationDbContext(new DbContextOptionsBuilder<ApplicationDbContext>()
             .UseInMemoryDatabase(name)
             .Options);
+    }
 
     [Fact]
     public async Task CreateAsync_Should_Encrypt_And_Hash_Identifiers()
@@ -50,4 +51,3 @@ public class UserServiceTests
         result!.PersonalitySettings.Should().ContainSingle(p => p.Personality == PersonalityEnum.Casual);
     }
 }
-

@@ -2,6 +2,7 @@ using Bot.Core.Services;
 using Bot.Core.StateMachine;
 using Bot.Shared;
 using Bot.Shared.DTOs;
+using Bot.Shared.Enums;
 using Bot.Shared.Models;
 using MassTransit;
 using MassTransit.Testing;
@@ -11,13 +12,13 @@ using Xunit.Abstractions;
 
 namespace Bot.Tests.StateMachine;
 
-public class BotStateMachineSecurityAndEdgeTests(ITestOutputHelper testOutputHelper): IAsyncLifetime
+public class BotStateMachineSecurityAndEdgeTests(ITestOutputHelper testOutputHelper) : IAsyncLifetime
 {
-    private readonly ITestOutputHelper _testOutputHelper = testOutputHelper;
-    private ServiceProvider _provider = null!;
-    private ITestHarness _harness = null!;
-    private ISagaStateMachineTestHarness<BotStateMachine, BotState> _sagaHarness = null!;
     private readonly Mock<IConversationStateService> _stateServiceMock = new();
+    private readonly ITestOutputHelper _testOutputHelper = testOutputHelper;
+    private ITestHarness _harness = null!;
+    private ServiceProvider _provider = null!;
+    private ISagaStateMachineTestHarness<BotStateMachine, BotState> _sagaHarness = null!;
 
     public async Task InitializeAsync()
     {
@@ -26,7 +27,7 @@ public class BotStateMachineSecurityAndEdgeTests(ITestOutputHelper testOutputHel
             .AddMassTransitTestHarness(cfg =>
             {
                 cfg.AddSagaStateMachine<BotStateMachine, BotState>()
-                   .InMemoryRepository();
+                    .InMemoryRepository();
             })
             .BuildServiceProvider(true);
 
@@ -53,11 +54,12 @@ public class BotStateMachineSecurityAndEdgeTests(ITestOutputHelper testOutputHel
         var exists = _sagaHarness.Sagas.Contains(id);
         Assert.True(exists == null || exists.CurrentState == "Initial");
     }
+
     [Fact]
     public async Task EDG_03_Should_Not_Disrupt_Saga_On_IntentEvt_In_Invalid_State()
     {
         var id = NewId.NextGuid();
-        await _harness.Bus.Publish(new UserIntentDetected(id, Shared.Enums.IntentType.Signup));
+        await _harness.Bus.Publish(new UserIntentDetected(id, IntentType.Signup));
         await _harness.Bus.Publish(new FullNameProvided(id, "EdgeCase"));
 
         var exists = await _sagaHarness.Exists(id, x => x.AskNin, TimeSpan.FromSeconds(5));
@@ -67,7 +69,7 @@ public class BotStateMachineSecurityAndEdgeTests(ITestOutputHelper testOutputHel
         Assert.Equal("AskNin", saga?.CurrentState);
 
 
-        await _harness.Bus.Publish(new UserIntentDetected(id, Shared.Enums.IntentType.Transfer)); // invalid time
+        await _harness.Bus.Publish(new UserIntentDetected(id, IntentType.Transfer)); // invalid time
 
         saga = _sagaHarness.Sagas.Contains(id);
         Assert.Equal("AskNin", saga?.CurrentState); // remains safe
@@ -78,7 +80,7 @@ public class BotStateMachineSecurityAndEdgeTests(ITestOutputHelper testOutputHel
     {
         var id = NewId.NextGuid();
 
-        await _harness.Bus.Publish(new UserIntentDetected(id, Shared.Enums.IntentType.Signup));
+        await _harness.Bus.Publish(new UserIntentDetected(id, IntentType.Signup));
         await _harness.Bus.Publish(new FullNameProvided(id, "Test User"));
 
         var exists = await _sagaHarness.Exists(id, x => x.AskNin, TimeSpan.FromSeconds(5));
@@ -96,7 +98,7 @@ public class BotStateMachineSecurityAndEdgeTests(ITestOutputHelper testOutputHel
     public async Task EVT_01_Should_Publish_NudgeCmd_On_NinRejected()
     {
         var id = NewId.NextGuid();
-        await _harness.Bus.Publish(new UserIntentDetected(id, Shared.Enums.IntentType.Signup));
+        await _harness.Bus.Publish(new UserIntentDetected(id, IntentType.Signup));
         await _harness.Bus.Publish(new FullNameProvided(id, "Nudge User"));
         await _harness.Bus.Publish(new NinProvided(id, "invalid"));
         await _harness.Bus.Publish(new NinRejected(id, "invalid"));
@@ -105,11 +107,12 @@ public class BotStateMachineSecurityAndEdgeTests(ITestOutputHelper testOutputHel
         Assert.NotNull(nudge);
         Assert.Equal(NudgeType.InvalidNin, nudge.Context.Message.NudgeType);
     }
+
     [Fact]
     public async Task EVT_02_Should_Publish_NudgeCmd_On_BvnRejected()
     {
         var id = NewId.NextGuid();
-        await _harness.Bus.Publish(new UserIntentDetected(id, Shared.Enums.IntentType.Signup));
+        await _harness.Bus.Publish(new UserIntentDetected(id, IntentType.Signup));
         await _harness.Bus.Publish(new FullNameProvided(id, "Nudge User"));
         await _harness.Bus.Publish(new NinProvided(id, "12345678901"));
         await _harness.Bus.Publish(new NinVerified(id, "12345678901"));
@@ -120,5 +123,4 @@ public class BotStateMachineSecurityAndEdgeTests(ITestOutputHelper testOutputHel
         Assert.NotNull(nudge);
         Assert.Equal(NudgeType.InvalidBvn, nudge.Context.Message.NudgeType);
     }
-
 }

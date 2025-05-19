@@ -1,10 +1,8 @@
 using System.Net;
-using System.Net.Http;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using Bot.Core.Providers;
-using System.Linq;
 using Bot.Core.Services;
 using Bot.Infrastructure.Configuration;
 using Bot.Shared.Models;

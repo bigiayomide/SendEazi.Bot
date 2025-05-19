@@ -18,12 +18,12 @@ namespace Bot.Tests.Integration;
 
 public class TransferFlowTests : IAsyncLifetime
 {
-    private ServiceProvider _provider = null!;
-    private ITestHarness _harness = null!;
-    private ISagaStateMachineTestHarness<BotStateMachine, BotState> _sagaHarness = null!;
-    private ApplicationDbContext _db = null!;
-    private readonly Mock<IConversationStateService> _stateSvc = new();
     private readonly Mock<IBankProvider> _bank = new();
+    private readonly Mock<IConversationStateService> _stateSvc = new();
+    private ApplicationDbContext _db = null!;
+    private ITestHarness _harness = null!;
+    private ServiceProvider _provider = null!;
+    private ISagaStateMachineTestHarness<BotStateMachine, BotState> _sagaHarness = null!;
 
     public async Task InitializeAsync()
     {
@@ -33,7 +33,7 @@ public class TransferFlowTests : IAsyncLifetime
         services.AddMassTransitTestHarness(cfg =>
         {
             cfg.AddSagaStateMachine<BotStateMachine, BotState>()
-               .InMemoryRepository();
+                .InMemoryRepository();
             cfg.AddConsumer<TransferCmdConsumer>();
             cfg.AddConsumer<TransferWebhookHandler>();
         });
@@ -118,7 +118,7 @@ public class TransferFlowTests : IAsyncLifetime
         var sid = await SeedReadyAsync(userId);
 
         var payload = new TransferPayload("111111", "001", 5000, "Test");
-        await _harness.Bus.Publish(new UserIntentDetected(sid, IntentType.Transfer, TransferPayload: payload));
+        await _harness.Bus.Publish(new UserIntentDetected(sid, IntentType.Transfer, payload));
         await _sagaHarness.Exists(sid, x => x.AwaitingPinValidate, TimeSpan.FromSeconds(5));
 
         await _harness.Bus.Publish(new PinValidated(sid));
@@ -146,11 +146,12 @@ public class TransferFlowTests : IAsyncLifetime
         var userId = Guid.NewGuid();
         var sid = await SeedReadyAsync(userId);
 
-        _bank.Setup(b => b.InitiateDebitAsync(It.IsAny<string>(), It.IsAny<decimal>(), It.IsAny<string>(), It.IsAny<string>()))
+        _bank.Setup(b =>
+                b.InitiateDebitAsync(It.IsAny<string>(), It.IsAny<decimal>(), It.IsAny<string>(), It.IsAny<string>()))
             .ThrowsAsync(new Exception("fail"));
 
         var payload = new TransferPayload("2222", "999", 7000, "FailTest");
-        await _harness.Bus.Publish(new UserIntentDetected(sid, IntentType.Transfer, TransferPayload: payload));
+        await _harness.Bus.Publish(new UserIntentDetected(sid, IntentType.Transfer, payload));
         await _sagaHarness.Exists(sid, x => x.AwaitingPinValidate, TimeSpan.FromSeconds(5));
 
         await _harness.Bus.Publish(new PinValidated(sid));
@@ -160,6 +161,7 @@ public class TransferFlowTests : IAsyncLifetime
         Assert.NotNull(tx);
         Assert.Equal(TransactionStatus.Failed, tx!.Status);
         Assert.True(await _harness.Published.Any<TransferFailed>(x => x.Context.Message.CorrelationId == sid));
-        Assert.True(await _harness.Published.Any<NudgeCmd>(x => x.Context.Message.CorrelationId == sid && x.Context.Message.NudgeType == NudgeType.TransferFail));
+        Assert.True(await _harness.Published.Any<NudgeCmd>(x =>
+            x.Context.Message.CorrelationId == sid && x.Context.Message.NudgeType == NudgeType.TransferFail));
     }
 }

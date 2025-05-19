@@ -15,7 +15,7 @@ public class SessionHelperTests
 
         svc.Setup(s => s.SetStateAsync(id, "Ready")).Returns(Task.CompletedTask).Verifiable();
 
-        await SessionHelper.SetSessionState(svc.Object, id, "Ready");
+        await svc.Object.SetSessionState(id, "Ready");
 
         svc.Verify();
     }
@@ -27,7 +27,7 @@ public class SessionHelperTests
         var id = Guid.NewGuid();
         svc.Setup(s => s.GetStateAsync(id)).ReturnsAsync("Ready").Verifiable();
 
-        var state = await SessionHelper.GetSessionState(svc.Object, id);
+        var state = await svc.Object.GetSessionState(id);
 
         state.Should().Be("Ready");
         svc.Verify();

@@ -9,10 +9,12 @@ namespace Bot.Tests.Services;
 
 public class FeedbackServiceTests
 {
-    private static ApplicationDbContext CreateDb(string name) =>
-        new(new DbContextOptionsBuilder<ApplicationDbContext>()
+    private static ApplicationDbContext CreateDb(string name)
+    {
+        return new ApplicationDbContext(new DbContextOptionsBuilder<ApplicationDbContext>()
             .UseInMemoryDatabase(name)
             .Options);
+    }
 
     [Fact]
     public async Task StoreAsync_Should_Return_New_Id()

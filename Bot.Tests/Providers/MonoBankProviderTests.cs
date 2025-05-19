@@ -1,7 +1,5 @@
 using System.Net;
-using System.Net.Http;
 using System.Text.Json;
-using System.Linq;
 using Bot.Core.Providers;
 using Bot.Core.Services;
 using Bot.Infrastructure.Configuration;

@@ -9,10 +9,12 @@ namespace Bot.Tests.Services;
 
 public class BudgetServiceTests
 {
-    private static ApplicationDbContext CreateDb(string name) =>
-        new(new DbContextOptionsBuilder<ApplicationDbContext>()
+    private static ApplicationDbContext CreateDb(string name)
+    {
+        return new ApplicationDbContext(new DbContextOptionsBuilder<ApplicationDbContext>()
             .UseInMemoryDatabase(name)
             .Options);
+    }
 
     [Fact]
     public async Task Should_Trigger_Alert_If_90Percent_Spent()

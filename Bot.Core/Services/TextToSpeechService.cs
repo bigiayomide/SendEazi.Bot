@@ -37,11 +37,19 @@ public class SpeechSynthesizerWrapper(ISpeechSynthesizer synthesizer) : ISpeechS
         return result;
     }
 
-    public ValueTask DisposeAsync() => synthesizer.DisposeAsync();
+    public ValueTask DisposeAsync()
+    {
+        return synthesizer.DisposeAsync();
+    }
 }
 
 public class DefaultSpeechSynthesizerFactory : ISpeechSynthesizerFactory
 {
+    public ISpeechSynthesizer Create(SpeechConfig config)
+    {
+        return new SpeechSynthesizerWrapper(new MsSpeechSynthesizerWrapper(new SpeechSynthesizer(config, null)));
+    }
+
     private class MsSpeechSynthesizerWrapper : ISpeechSynthesizer
     {
         private readonly SpeechSynthesizer _synthesizer;
@@ -65,13 +73,10 @@ public class DefaultSpeechSynthesizerFactory : ISpeechSynthesizerFactory
 
         public ValueTask DisposeAsync()
         {
-             _synthesizer.Dispose();
-             return ValueTask.CompletedTask;
+            _synthesizer.Dispose();
+            return ValueTask.CompletedTask;
         }
     }
-
-    public ISpeechSynthesizer Create(SpeechConfig config)
-        => new SpeechSynthesizerWrapper(new MsSpeechSynthesizerWrapper(new SpeechSynthesizer(config, null)));
 }
 
 /// <summary>
@@ -110,8 +115,8 @@ public class VoicePicker
 
 public class TextToSpeechService : ITextToSpeechService
 {
-    private readonly SpeechConfig _speechConfig;
     private readonly ISpeechSynthesizerFactory _factory;
+    private readonly SpeechConfig _speechConfig;
     private readonly Func<string, string> _voiceSelector;
 
     public TextToSpeechService(IMemoryCache cache, IOptions<TextToSpeechOptions> options,
@@ -125,20 +130,7 @@ public class TextToSpeechService : ITextToSpeechService
         _speechConfig = SpeechConfig.FromSubscription(options.Value.SubscriptionKey, options.Value.Region);
         _factory = factory ?? new DefaultSpeechSynthesizerFactory();
 
-        _voiceSelector = voiceSelector ?? Task.Run(() => CreateDefaultVoiceSelector(cache)).GetAwaiter().GetResult();
-    }
-
-    private async Task<Func<string, string>> CreateDefaultVoiceSelector(IMemoryCache cache)
-    {
-        if (!cache.TryGetValue("voices_list", out IReadOnlyList<VoiceInfo>? voices))
-        {
-            await using var synth = _factory.Create(_speechConfig);
-            voices = synth.GetVoicesAsync().GetAwaiter().GetResult();
-            cache.Set("voices_list", voices, TimeSpan.FromDays(1));
-        }
-
-        var picker = new VoicePicker(voices);
-        return picker.PickVoice;
+        _voiceSelector = voiceSelector ?? CreateDefaultVoiceSelector(cache).GetAwaiter().GetResult();
     }
 
     public async Task<Stream> SynthesizeAsync(string text, string localeCode)
@@ -162,5 +154,18 @@ public class TextToSpeechService : ITextToSpeechService
 
         // Return the raw audio bytes
         return new MemoryStream(result.AudioData);
+    }
+
+    private async Task<Func<string, string>> CreateDefaultVoiceSelector(IMemoryCache cache)
+    {
+        if (!cache.TryGetValue("voices_list", out IReadOnlyList<VoiceInfo>? voices))
+        {
+            await using var synth = _factory.Create(_speechConfig);
+            voices = synth.GetVoicesAsync().GetAwaiter().GetResult();
+            cache.Set("voices_list", voices, TimeSpan.FromDays(1));
+        }
+
+        var picker = new VoicePicker(voices);
+        return picker.PickVoice;
     }
 }

@@ -27,7 +27,7 @@ public class TransferWebhookHandler(
         tx.CompletedAt = DateTime.UtcNow;
         await db.SaveChangesAsync();
 
-        await ctx.Publish(new PreviewCmd(ctx.Message.CorrelationId, TransactionId: tx.Id));
+        await ctx.Publish(new PreviewCmd(ctx.Message.CorrelationId, tx.Id));
 
         log.LogInformation("✅ Transfer marked successful and preview published for {Ref}", ctx.Message.Reference);
     }
@@ -53,6 +53,7 @@ public class TransferWebhookHandler(
             await wa.SendTextMessageAsync(user.PhoneNumber, msg);
         }
 
-        log.LogWarning("❌ Transfer marked failed for {Ref} — Reason: {Reason}", ctx.Message.Reference, ctx.Message.Reason);
+        log.LogWarning("❌ Transfer marked failed for {Ref} — Reason: {Reason}", ctx.Message.Reference,
+            ctx.Message.Reason);
     }
 }

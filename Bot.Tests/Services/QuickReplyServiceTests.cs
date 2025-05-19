@@ -13,16 +13,22 @@ namespace Bot.Tests.Services;
 
 public class QuickReplyServiceTests
 {
-    private static ApplicationDbContext CreateDb(string name) =>
-        new(new DbContextOptionsBuilder<ApplicationDbContext>()
+    private static ApplicationDbContext CreateDb(string name)
+    {
+        return new ApplicationDbContext(new DbContextOptionsBuilder<ApplicationDbContext>()
             .UseInMemoryDatabase(name)
             .Options);
+    }
 
-    private static IDistributedCache CreateCache() =>
-        new MemoryDistributedCache(Options.Create(new MemoryDistributedCacheOptions()));
+    private static IDistributedCache CreateCache()
+    {
+        return new MemoryDistributedCache(Options.Create(new MemoryDistributedCacheOptions()));
+    }
 
-    private static QuickReplyService CreateService(ApplicationDbContext db, IDistributedCache cache) =>
-        new(cache, Options.Create(new QuickReplyOptions()), db);
+    private static QuickReplyService CreateService(ApplicationDbContext db, IDistributedCache cache)
+    {
+        return new QuickReplyService(cache, Options.Create(new QuickReplyOptions()), db);
+    }
 
     [Fact]
     public async Task GetQuickReplies_Should_Return_Defaults_When_No_Favorites()
@@ -31,7 +37,7 @@ public class QuickReplyServiceTests
         await using var db = CreateDb("qr-no-fav");
         var service = CreateService(db, CreateCache());
 
-        var results = await service.GetQuickRepliesAsync(userId, max: 2);
+        var results = await service.GetQuickRepliesAsync(userId, 2);
 
         results.Should().ContainInOrder("Check balance", "Send money");
     }
@@ -67,7 +73,7 @@ public class QuickReplyServiceTests
         await service.RecordPayeeUseAsync(userId, p2.Id);
         await service.RecordPayeeUseAsync(userId, p1.Id);
 
-        var replies = await service.GetQuickRepliesAsync(userId, max: 2);
+        var replies = await service.GetQuickRepliesAsync(userId, 2);
 
         replies.Should().ContainInOrder("Alpha", "Acct:3344");
 
@@ -99,7 +105,7 @@ public class QuickReplyServiceTests
 
         await service.RecordPayeeUseAsync(userId, p1.Id);
 
-        var results = await service.GetQuickRepliesAsync(userId, max: 4);
+        var results = await service.GetQuickRepliesAsync(userId, 4);
 
         results.Should().ContainInOrder("Beta", "Check balance", "Send money", "Recent transactions");
     }

@@ -1,9 +1,8 @@
 using Bot.Core.Services;
 using Bot.Core.StateMachine.Consumers.UX;
 using Bot.Shared.DTOs;
-using Moq;
 using MassTransit;
-using Xunit;
+using Moq;
 
 namespace Bot.Tests.Consumers;
 
@@ -29,7 +28,8 @@ public class PromptCmdConsumerTests
 
         await consumer.Consume(ctx);
 
-        wa.Verify(w => w.SendTextMessageAsync("+2348000000000", It.Is<string>(s => s.Contains("full name"))), Times.Once);
+        wa.Verify(w => w.SendTextMessageAsync("+2348000000000", It.Is<string>(s => s.Contains("full name"))),
+            Times.Once);
     }
 
     [Fact]

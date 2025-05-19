@@ -41,8 +41,6 @@ public class ConversationStateService(
     private readonly ConversationStateOptions _opts = opts.Value;
     private readonly IDatabase _redis = redis.GetDatabase();
 
-    private string UserIndexKey(Guid userId) => $"{_opts.RedisKeyPrefix}user:{userId}";
-
     public async Task<ConversationSession> GetOrCreateSessionAsync(string phoneNumber)
     {
         var idxKey = IndexKey(phoneNumber);
@@ -123,6 +121,11 @@ public class ConversationStateService(
         var key = SessionKey(sessionId);
         var state = await _redis.HashGetAsync(key, nameof(ConversationSession.State));
         return state.IsNullOrEmpty ? "None" : state!;
+    }
+
+    private string UserIndexKey(Guid userId)
+    {
+        return $"{_opts.RedisKeyPrefix}user:{userId}";
     }
 
     private string SessionKey(Guid id)

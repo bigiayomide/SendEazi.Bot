@@ -1,70 +1,68 @@
-﻿using System;
+﻿#nullable disable
+
 using Microsoft.EntityFrameworkCore.Migrations;
 
-#nullable disable
+namespace Bot.Infrastructure.SagaMigrations;
 
-namespace Bot.Infrastructure.SagaMigrations
+/// <inheritdoc />
+public partial class sagamigration : Migration
 {
     /// <inheritdoc />
-    public partial class sagamigration : Migration
+    protected override void Up(MigrationBuilder migrationBuilder)
     {
-        /// <inheritdoc />
-        protected override void Up(MigrationBuilder migrationBuilder)
-        {
-            migrationBuilder.AddColumn<DateTime>(
-                name: "LastIntentHandledAt",
-                table: "BotState",
-                type: "timestamp with time zone",
-                nullable: true);
+        migrationBuilder.AddColumn<DateTime>(
+            "LastIntentHandledAt",
+            "BotState",
+            "timestamp with time zone",
+            nullable: true);
 
-            migrationBuilder.AddColumn<string>(
-                name: "PendingPayloadHash",
-                table: "BotState",
-                type: "text",
-                nullable: true);
+        migrationBuilder.AddColumn<string>(
+            "PendingPayloadHash",
+            "BotState",
+            "text",
+            nullable: true);
 
-            migrationBuilder.AddColumn<bool>(
-                name: "PreviewPublished",
-                table: "BotState",
-                type: "boolean",
-                nullable: false,
-                defaultValue: false);
+        migrationBuilder.AddColumn<bool>(
+            "PreviewPublished",
+            "BotState",
+            "boolean",
+            nullable: false,
+            defaultValue: false);
 
-            migrationBuilder.AddColumn<string>(
-                name: "SagaVersion",
-                table: "BotState",
-                type: "text",
-                nullable: true);
+        migrationBuilder.AddColumn<string>(
+            "SagaVersion",
+            "BotState",
+            "text",
+            nullable: true);
 
-            migrationBuilder.AddColumn<Guid>(
-                name: "TimeoutTokenId",
-                table: "BotState",
-                type: "uuid",
-                nullable: true);
-        }
+        migrationBuilder.AddColumn<Guid>(
+            "TimeoutTokenId",
+            "BotState",
+            "uuid",
+            nullable: true);
+    }
 
-        /// <inheritdoc />
-        protected override void Down(MigrationBuilder migrationBuilder)
-        {
-            migrationBuilder.DropColumn(
-                name: "LastIntentHandledAt",
-                table: "BotState");
+    /// <inheritdoc />
+    protected override void Down(MigrationBuilder migrationBuilder)
+    {
+        migrationBuilder.DropColumn(
+            "LastIntentHandledAt",
+            "BotState");
 
-            migrationBuilder.DropColumn(
-                name: "PendingPayloadHash",
-                table: "BotState");
+        migrationBuilder.DropColumn(
+            "PendingPayloadHash",
+            "BotState");
 
-            migrationBuilder.DropColumn(
-                name: "PreviewPublished",
-                table: "BotState");
+        migrationBuilder.DropColumn(
+            "PreviewPublished",
+            "BotState");
 
-            migrationBuilder.DropColumn(
-                name: "SagaVersion",
-                table: "BotState");
+        migrationBuilder.DropColumn(
+            "SagaVersion",
+            "BotState");
 
-            migrationBuilder.DropColumn(
-                name: "TimeoutTokenId",
-                table: "BotState");
-        }
+        migrationBuilder.DropColumn(
+            "TimeoutTokenId",
+            "BotState");
     }
 }

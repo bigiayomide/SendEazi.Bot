@@ -18,15 +18,15 @@ public class TranscriptionServiceTests
         mockRecognizer.Setup(r => r.DisposeAsync()).Returns(ValueTask.CompletedTask);
 
         var factory = new Mock<ISpeechRecognizerFactory>();
-        factory.Setup(f => f.Create(It.IsAny<SpeechConfig>(), It.IsAny<AutoDetectSourceLanguageConfig>(), It.IsAny<AudioConfig>()))
+        factory.Setup(f => f.Create(It.IsAny<SpeechConfig>(), It.IsAny<AutoDetectSourceLanguageConfig>(),
+                It.IsAny<AudioConfig>()))
             .Returns(mockRecognizer.Object);
 
         var service = new TranscriptionService("key", "region", factory.Object);
-        await using var ms = new MemoryStream(new byte[] {1,2,3});
-        var result = await service.TranscribeAsync(ms, new[] {"en-US"});
+        await using var ms = new MemoryStream(new byte[] { 1, 2, 3 });
+        var result = await service.TranscribeAsync(ms, new[] { "en-US" });
 
         result.Text.Should().Be("hi");
         result.DetectedLanguage.Should().Be("en-US");
     }
 }
-

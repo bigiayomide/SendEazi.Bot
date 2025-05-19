@@ -36,7 +36,8 @@ public static class TestContextHelper
         await db.SaveChangesAsync();
     }
 
-    public static async Task SeedMandateAsync(this ApplicationDbContext db, Guid userId, string mandateId = "mandate-test")
+    public static async Task SeedMandateAsync(this ApplicationDbContext db, Guid userId,
+        string mandateId = "mandate-test")
     {
         db.DirectDebitMandates.Add(new DirectDebitMandate
         {
@@ -64,7 +65,8 @@ public static class TestContextHelper
         return db;
     }
 
-    public static IServiceCollection AddMockBankFactory(this IServiceCollection services, Guid userId, IBankProvider provider)
+    public static IServiceCollection AddMockBankFactory(this IServiceCollection services, Guid userId,
+        IBankProvider provider)
     {
         var mockFactory = new Mock<IBankProviderFactory>();
         mockFactory.Setup(f => f.GetProviderAsync(userId, null)).ReturnsAsync(provider);
@@ -81,10 +83,7 @@ public static class TestContextHelper
         var services = new ServiceCollection();
 
         services.AddInMemoryDb(dbName);
-        services.AddMassTransitTestHarness(cfg =>
-        {
-            cfg.AddConsumer<TConsumer>();
-        });
+        services.AddMassTransitTestHarness(cfg => { cfg.AddConsumer<TConsumer>(); });
 
         services.AddScoped<TConsumer>();
 

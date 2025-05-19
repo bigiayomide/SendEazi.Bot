@@ -1,5 +1,4 @@
 using Bot.Core.Services;
-using Bot.Core.StateMachine;
 using Bot.Infrastructure.Data;
 using Bot.Shared.DTOs;
 using Bot.Shared.Models;
@@ -13,10 +12,12 @@ namespace Bot.Tests.Services;
 
 public class RecurringTransferServiceTests
 {
-    private ApplicationDbContext CreateDb(string name) =>
-        new(new DbContextOptionsBuilder<ApplicationDbContext>()
+    private ApplicationDbContext CreateDb(string name)
+    {
+        return new ApplicationDbContext(new DbContextOptionsBuilder<ApplicationDbContext>()
             .UseInMemoryDatabase(name)
             .Options);
+    }
 
     [Fact]
     public async Task Should_Publish_TransferCmd_For_Due_Transfer()
@@ -55,7 +56,8 @@ public class RecurringTransferServiceTests
             .Returns(Task.CompletedTask);
 
         var refGen = new ReferenceGenerator();
-        var service = new RecurringTransferService(db,  Mock.Of<ILogger<RecurringTransferService>>(), refGen, bus.Object);
+        var service =
+            new RecurringTransferService(db, Mock.Of<ILogger<RecurringTransferService>>(), refGen, bus.Object);
 
         // Act
         await service.ProcessDueTransfersAsync();
@@ -92,7 +94,7 @@ public class RecurringTransferServiceTests
             PayeeId = payeeId,
             CronExpression = "* * * * *",
             NextRun = DateTime.UtcNow.AddHours(1),
-            IsActive = true,
+            IsActive = true
         });
 
         await db.SaveChangesAsync();
@@ -100,7 +102,8 @@ public class RecurringTransferServiceTests
         var bus = new Mock<IPublishEndpoint>();
         var refGen = new ReferenceGenerator();
 
-        var service = new RecurringTransferService(db,  Mock.Of<ILogger<RecurringTransferService>>(), refGen, bus.Object);
+        var service =
+            new RecurringTransferService(db, Mock.Of<ILogger<RecurringTransferService>>(), refGen, bus.Object);
         await service.ProcessDueTransfersAsync();
 
         bus.Verify(x => x.Publish(It.IsAny<TransferCmd>(), default), Times.Never);
@@ -128,7 +131,8 @@ public class RecurringTransferServiceTests
 
         var bus = new Mock<IPublishEndpoint>();
         var refGen = new ReferenceGenerator();
-        var service = new RecurringTransferService(db,  Mock.Of<ILogger<RecurringTransferService>>(), refGen, bus.Object);
+        var service =
+            new RecurringTransferService(db, Mock.Of<ILogger<RecurringTransferService>>(), refGen, bus.Object);
 
         await service.ProcessDueTransfersAsync();
 
@@ -164,11 +168,11 @@ public class RecurringTransferServiceTests
 
         var bus = new Mock<IPublishEndpoint>();
         var refGen = new ReferenceGenerator();
-        var service = new RecurringTransferService(db,  Mock.Of<ILogger<RecurringTransferService>>(), refGen, bus.Object);
+        var service =
+            new RecurringTransferService(db, Mock.Of<ILogger<RecurringTransferService>>(), refGen, bus.Object);
 
         var act = async () => await service.ProcessDueTransfersAsync();
 
         await act.Should().NotThrowAsync(); // handles it gracefully
     }
-
 }

@@ -16,7 +16,6 @@ public class BankLinkCmdConsumer(IUserService users, IEncryptionService encrypti
             ctx.Message.CorrelationId,
             user.FullName!,
             user.PhoneNumber,
-            encryption.Decrypt(user.BVNEnc),
-            200_000_000));
+            encryption.Decrypt(user.BVNEnc)));
     }
 }

@@ -1,5 +1,5 @@
-using Bot.Core.Services;
 using Bot.Core.Providers;
+using Bot.Core.Services;
 using Bot.Infrastructure.Data;
 using Bot.Shared.Models;
 using FluentAssertions;
@@ -10,10 +10,12 @@ namespace Bot.Tests.Services;
 
 public class BankConnectionServiceTests
 {
-    private static ApplicationDbContext CreateDb(string name) =>
-        new(new DbContextOptionsBuilder<ApplicationDbContext>()
+    private static ApplicationDbContext CreateDb(string name)
+    {
+        return new ApplicationDbContext(new DbContextOptionsBuilder<ApplicationDbContext>()
             .UseInMemoryDatabase(name)
             .Options);
+    }
 
     [Fact]
     public async Task ConnectUserBankAsync_Should_Update_Timestamp()
@@ -50,7 +52,7 @@ public class BankConnectionServiceTests
         var db = CreateDb("bank-connect-missing");
         var service = new BankConnectionService(db, new Mock<IBankProvider>().Object);
 
-        Func<Task> act = () => service.ConnectUserBankAsync(Guid.NewGuid(), "code");
+        var act = () => service.ConnectUserBankAsync(Guid.NewGuid(), "code");
 
         await act.Should().ThrowAsync<InvalidOperationException>();
     }

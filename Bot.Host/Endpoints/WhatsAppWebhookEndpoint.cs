@@ -1,7 +1,6 @@
 using System.Text.Json;
 using Bot.Core.Helpers;
 using Bot.Core.Services;
-using Bot.Core.StateMachine;
 using Bot.Infrastructure.Data;
 using Bot.Shared.DTOs;
 using FastEndpoints;
@@ -104,9 +103,7 @@ public class WhatsAppWebhookEndpoint(
             if (payeeMatch)
                 await bus.Publish(new ResolveQuickReplyCmd(correlationId, text), ct);
             else
-            {
                 await bus.Publish(new RawInboundMsgCmd(correlationId, phone, text, msgId), ct);
-            }
 
             await state.UpdateLastMessageAsync(session.SessionId, text);
             await SendOkAsync(ct);

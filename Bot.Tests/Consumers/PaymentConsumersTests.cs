@@ -50,7 +50,8 @@ public class PaymentConsumersTests
         var billSvc = new Mock<IBillPayService>();
         var billId = Guid.NewGuid();
         billSvc.Setup(b => b.PayBillAsync(userId, It.IsAny<string>(), It.IsAny<decimal>(), It.IsAny<DateTime>()))
-            .ReturnsAsync(new BillPayment { Id = billId, UserId = userId, IsPaid = true, Biller = BillerEnum.Electricity });
+            .ReturnsAsync(new BillPayment
+                { Id = billId, UserId = userId, IsPaid = true, Biller = BillerEnum.Electricity });
 
         var userSvc = new Mock<IUserService>();
         userSvc.Setup(u => u.GetByIdAsync(userId)).ReturnsAsync(new User { Id = userId });

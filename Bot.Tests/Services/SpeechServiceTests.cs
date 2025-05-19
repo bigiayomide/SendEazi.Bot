@@ -2,7 +2,6 @@ using Bot.Core.Services;
 using FluentAssertions;
 using Microsoft.Extensions.Options;
 using Moq;
-using Xunit;
 
 namespace Bot.Tests.Services;
 
@@ -17,7 +16,11 @@ public class SpeechServiceTests
         Stream? receivedStream = null;
         string[]? receivedLangs = null;
         transcriber.Setup(t => t.TranscribeAsync(It.IsAny<Stream>(), It.IsAny<string[]>()))
-            .Callback<Stream, string[]>((s, l) => { receivedStream = s; receivedLangs = l; })
+            .Callback<Stream, string[]>((s, l) =>
+            {
+                receivedStream = s;
+                receivedLangs = l;
+            })
             .ReturnsAsync(expectedResult);
 
         var options = Options.Create(new SpeechOptions { SupportedLanguages = new[] { "en-US", "ig-NG" } });

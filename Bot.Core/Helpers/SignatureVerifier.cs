@@ -3,7 +3,7 @@ using System.Text;
 
 namespace Bot.Core.Helpers;
 
-public static class SignatureVerifier 
+public static class SignatureVerifier
 {
     private static HMACSHA256 CreateHmac(string secret)
     {
@@ -27,7 +27,7 @@ public static class SignatureVerifier
 
     public static bool MetaSecretVerifier(string headerValue, string rawBody, string secret)
     {
-        if (!headerValue.StartsWith("sha256=")) 
+        if (!headerValue.StartsWith("sha256="))
             return false;
 
         using var hmac = CreateHmac(secret);

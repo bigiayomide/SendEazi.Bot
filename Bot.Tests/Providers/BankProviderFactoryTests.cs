@@ -9,7 +9,6 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Moq;
-using Xunit;
 
 namespace Bot.Tests.Providers;
 
@@ -85,7 +84,7 @@ public class BankProviderFactoryTests
         var userId = Guid.NewGuid();
         using var provider = BuildServices("onepipe-selected");
         var db = provider.GetRequiredService<ApplicationDbContext>();
-        var account = CreateAccount(userId, "OnePipe", false);
+        var account = CreateAccount(userId, "OnePipe");
         db.LinkedBankAccounts.Add(account);
         await db.SaveChangesAsync();
 

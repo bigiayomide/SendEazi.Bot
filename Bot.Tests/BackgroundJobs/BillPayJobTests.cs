@@ -1,9 +1,8 @@
-using Bot.Host.BackgroundJobs;
 using Bot.Core.Services;
+using Bot.Host.BackgroundJobs;
+using Microsoft.Extensions.Logging;
 using Moq;
 using Quartz;
-using Microsoft.Extensions.Logging;
-using Xunit;
 
 namespace Bot.Tests.BackgroundJobs;
 
@@ -36,11 +35,11 @@ public class BillPayJobTests
         await job.Execute(context.Object);
 
         logger.Verify(l => l.Log(
-            LogLevel.Error,
-            It.IsAny<EventId>(),
-            It.IsAny<It.IsAnyType>(),
-            It.IsAny<Exception?>(),
-            It.IsAny<Func<It.IsAnyType, Exception?, string>>()),
+                LogLevel.Error,
+                It.IsAny<EventId>(),
+                It.IsAny<It.IsAnyType>(),
+                It.IsAny<Exception?>(),
+                It.IsAny<Func<It.IsAnyType, Exception?, string>>()),
             Times.AtLeastOnce);
     }
 }

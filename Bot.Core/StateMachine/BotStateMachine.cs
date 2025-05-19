@@ -5,9 +5,8 @@ using System.Text.Json.Serialization;
 using Bot.Core.Services;
 using Bot.Shared;
 using Bot.Shared.DTOs;
-using Bot.Shared.Models;
-using Bot.Core.StateMachine.Helpers;
 using Bot.Shared.Enums;
+using Bot.Shared.Models;
 using MassTransit;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -16,45 +15,13 @@ namespace Bot.Core.StateMachine;
 
 public class BotStateMachine : MassTransitStateMachine<BotState>
 {
-    public Event<BalanceSent> BalSent { get; private set; } = null!;
-    public Event<BankLinkFailed> BankBad { get; private set; } = null!;
-    public Event<BankLinkSucceeded> BankOk { get; private set; } = null!;
-    public Event<BillPayFailed> BillBad { get; private set; } = null!;
-    public Event<BillPaid> BillOk { get; private set; } = null!;
-    public Event<BvnRejected> BvnBad { get; private set; } = null!;
-    public Event<BvnProvided> BvnEvt { get; private set; } = null!;
-    public Event<BvnVerified> BvnOk { get; private set; } = null!;
-    public Event<BudgetAlertTriggered> GoalAlert { get; private set; } = null!;
-    public Event<UserIntentDetected> IntentEvt { get; private set; } = null!;
-    public Event<KycRejected> KycBad { get; private set; } = null!;
-    public Event<KycApproved> KycOk { get; private set; } = null!;
-    public Event<MandateReadyToDebit> MandateReadyEvt { get; private set; } = null!;
-    public Event<FullNameProvided> NameEvt { get; private set; } = null!;
-    public Event<NinRejected> NinBad { get; private set; } = null!;
-    public Event<NinProvided> NinEvt { get; private set; } = null!;
-    public Event<NinVerified> NinOk { get; private set; } = null!;
-    public Event<PinInvalid> PinBad { get; private set; } = null!;
-    public Event<PinValidated> PinOk { get; private set; } = null!;
-    public Event<PinSetupFailed> PinSetBad { get; private set; } = null!;
-    public Event<PinSet> PinSetEvt { get; private set; } = null!;
-    public Event<RecurringFailed> RecBad { get; private set; } = null!;
-    public Event<RecurringCancelled> RecCancel { get; private set; } = null!;
-    public Event<RecurringExecuted> RecExec { get; private set; } = null!;
-    public Event<SignupFailed> SignBad { get; private set; } = null!;
-    public Event<SignupSucceeded> SignOk { get; private set; } = null!;
-    public Event<TransferFailed> TxBad { get; private set; } = null!;
-    public Event<TransferCompleted> TxOk { get; private set; } = null!;
-
-    // A "scheduled message" type for inactivity timeouts
-    public Schedule<BotState, TimeoutExpired> TimeoutSchedule { get; private set; } = null!;
-
-    private readonly ILogger<BotStateMachine> _logger;
-
     private static readonly JsonSerializerOptions DedupeJsonOptions = new()
     {
         DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase
     };
+
+    private readonly ILogger<BotStateMachine> _logger;
 
     // ------------------------------------------------------------------------
     // CONSTRUCTOR
@@ -68,6 +35,52 @@ public class BotStateMachine : MassTransitStateMachine<BotState>
         ConfigureSchedules();
         ConfigureStates();
     }
+
+    public Event<BalanceSent> BalSent { get; } = null!;
+    public Event<BankLinkFailed> BankBad { get; } = null!;
+    public Event<BankLinkSucceeded> BankOk { get; } = null!;
+    public Event<BillPayFailed> BillBad { get; } = null!;
+    public Event<BillPaid> BillOk { get; } = null!;
+    public Event<BvnRejected> BvnBad { get; } = null!;
+    public Event<BvnProvided> BvnEvt { get; } = null!;
+    public Event<BvnVerified> BvnOk { get; } = null!;
+    public Event<BudgetAlertTriggered> GoalAlert { get; } = null!;
+    public Event<UserIntentDetected> IntentEvt { get; } = null!;
+    public Event<KycRejected> KycBad { get; } = null!;
+    public Event<KycApproved> KycOk { get; } = null!;
+    public Event<MandateReadyToDebit> MandateReadyEvt { get; } = null!;
+    public Event<FullNameProvided> NameEvt { get; } = null!;
+    public Event<NinRejected> NinBad { get; } = null!;
+    public Event<NinProvided> NinEvt { get; } = null!;
+    public Event<NinVerified> NinOk { get; } = null!;
+    public Event<PinInvalid> PinBad { get; } = null!;
+    public Event<PinValidated> PinOk { get; } = null!;
+    public Event<PinSetupFailed> PinSetBad { get; } = null!;
+    public Event<PinSet> PinSetEvt { get; } = null!;
+    public Event<RecurringFailed> RecBad { get; } = null!;
+    public Event<RecurringCancelled> RecCancel { get; } = null!;
+    public Event<RecurringExecuted> RecExec { get; } = null!;
+    public Event<SignupFailed> SignBad { get; } = null!;
+    public Event<SignupSucceeded> SignOk { get; } = null!;
+    public Event<TransferFailed> TxBad { get; } = null!;
+    public Event<TransferCompleted> TxOk { get; } = null!;
+
+    // A "scheduled message" type for inactivity timeouts
+    public Schedule<BotState, TimeoutExpired> TimeoutSchedule { get; } = null!;
+
+    // ------------------------------------------------------------------------
+    // STATES
+    // ------------------------------------------------------------------------
+    public State AskFullName { get; } = null!;
+    public State AskNin { get; } = null!;
+    public State NinValidating { get; } = null!;
+    public State AskBvn { get; } = null!;
+    public State BvnValidating { get; } = null!;
+    public State AwaitingKyc { get; } = null!;
+    public State AwaitingBankLink { get; } = null!;
+    public State AwaitingPinSetup { get; } = null!;
+    public State AwaitingPinValidate { get; } = null!;
+    public State Ready { get; } = null!;
 
     // ------------------------------------------------------------------------
     // EVENTS + CORRELATIONS
@@ -87,34 +100,33 @@ public class BotStateMachine : MassTransitStateMachine<BotState>
             });
         });
 
-        Event(() => NameEvt,           x => x.CorrelateById(m => m.Message.CorrelationId));
-        Event(() => NinEvt,            x => x.CorrelateById(m => m.Message.CorrelationId));
-        Event(() => NinOk,             x => x.CorrelateById(m => m.Message.CorrelationId));
-        Event(() => NinBad,            x => x.CorrelateById(m => m.Message.CorrelationId));
-        Event(() => BvnEvt,            x => x.CorrelateById(m => m.Message.CorrelationId));
-        Event(() => BvnOk,             x => x.CorrelateById(m => m.Message.CorrelationId));
-        Event(() => BvnBad,            x => x.CorrelateById(m => m.Message.CorrelationId));
-        Event(() => SignOk,            x => x.CorrelateById(m => m.Message.CorrelationId));
-        Event(() => SignBad,           x => x.CorrelateById(m => m.Message.CorrelationId));
-        Event(() => KycOk,             x => x.CorrelateById(m => m.Message.CorrelationId));
-        Event(() => KycBad,            x => x.CorrelateById(m => m.Message.CorrelationId));
-        Event(() => BankOk,            x => x.CorrelateById(m => m.Message.CorrelationId));
-        Event(() => BankBad,           x => x.CorrelateById(m => m.Message.CorrelationId));
-        Event(() => PinSetEvt,         x => x.CorrelateById(m => m.Message.CorrelationId));
-        Event(() => PinSetBad,         x => x.CorrelateById(m => m.Message.CorrelationId));
-        Event(() => PinOk,             x => x.CorrelateById(m => m.Message.CorrelationId));
-        Event(() => PinBad,            x => x.CorrelateById(m => m.Message.CorrelationId));
-        Event(() => TxOk,              x => x.CorrelateById(m => m.Message.CorrelationId));
-        Event(() => TxBad,             x => x.CorrelateById(m => m.Message.CorrelationId));
-        Event(() => BillOk,            x => x.CorrelateById(m => m.Message.CorrelationId));
-        Event(() => BillBad,           x => x.CorrelateById(m => m.Message.CorrelationId));
-        Event(() => BalSent,           x => x.CorrelateById(m => m.Message.CorrelationId));
-        Event(() => RecExec,           x => x.CorrelateById(m => m.Message.CorrelationId));
-        Event(() => RecBad,            x => x.CorrelateById(m => m.Message.CorrelationId));
-        Event(() => RecCancel,         x => x.CorrelateById(m => m.Message.CorrelationId));
-        Event(() => GoalAlert,         x => x.CorrelateById(m => m.Message.CorrelationId));
-        Event(() => MandateReadyEvt,   x => x.CorrelateById(m => m.Message.CorrelationId));
-        
+        Event(() => NameEvt, x => x.CorrelateById(m => m.Message.CorrelationId));
+        Event(() => NinEvt, x => x.CorrelateById(m => m.Message.CorrelationId));
+        Event(() => NinOk, x => x.CorrelateById(m => m.Message.CorrelationId));
+        Event(() => NinBad, x => x.CorrelateById(m => m.Message.CorrelationId));
+        Event(() => BvnEvt, x => x.CorrelateById(m => m.Message.CorrelationId));
+        Event(() => BvnOk, x => x.CorrelateById(m => m.Message.CorrelationId));
+        Event(() => BvnBad, x => x.CorrelateById(m => m.Message.CorrelationId));
+        Event(() => SignOk, x => x.CorrelateById(m => m.Message.CorrelationId));
+        Event(() => SignBad, x => x.CorrelateById(m => m.Message.CorrelationId));
+        Event(() => KycOk, x => x.CorrelateById(m => m.Message.CorrelationId));
+        Event(() => KycBad, x => x.CorrelateById(m => m.Message.CorrelationId));
+        Event(() => BankOk, x => x.CorrelateById(m => m.Message.CorrelationId));
+        Event(() => BankBad, x => x.CorrelateById(m => m.Message.CorrelationId));
+        Event(() => PinSetEvt, x => x.CorrelateById(m => m.Message.CorrelationId));
+        Event(() => PinSetBad, x => x.CorrelateById(m => m.Message.CorrelationId));
+        Event(() => PinOk, x => x.CorrelateById(m => m.Message.CorrelationId));
+        Event(() => PinBad, x => x.CorrelateById(m => m.Message.CorrelationId));
+        Event(() => TxOk, x => x.CorrelateById(m => m.Message.CorrelationId));
+        Event(() => TxBad, x => x.CorrelateById(m => m.Message.CorrelationId));
+        Event(() => BillOk, x => x.CorrelateById(m => m.Message.CorrelationId));
+        Event(() => BillBad, x => x.CorrelateById(m => m.Message.CorrelationId));
+        Event(() => BalSent, x => x.CorrelateById(m => m.Message.CorrelationId));
+        Event(() => RecExec, x => x.CorrelateById(m => m.Message.CorrelationId));
+        Event(() => RecBad, x => x.CorrelateById(m => m.Message.CorrelationId));
+        Event(() => RecCancel, x => x.CorrelateById(m => m.Message.CorrelationId));
+        Event(() => GoalAlert, x => x.CorrelateById(m => m.Message.CorrelationId));
+        Event(() => MandateReadyEvt, x => x.CorrelateById(m => m.Message.CorrelationId));
     }
 
     // ------------------------------------------------------------------------
@@ -131,20 +143,6 @@ public class BotStateMachine : MassTransitStateMachine<BotState>
             }
         );
     }
-
-    // ------------------------------------------------------------------------
-    // STATES
-    // ------------------------------------------------------------------------
-    public State AskFullName { get; private set; } = null!;
-    public State AskNin { get; private set; } = null!;
-    public State NinValidating { get; private set; } = null!;
-    public State AskBvn { get; private set; } = null!;
-    public State BvnValidating { get; private set; } = null!;
-    public State AwaitingKyc { get; private set; } = null!;
-    public State AwaitingBankLink { get; private set; } = null!;
-    public State AwaitingPinSetup { get; private set; } = null!;
-    public State AwaitingPinValidate { get; private set; } = null!;
-    public State Ready { get; private set; } = null!;
 
     private void ConfigureStates()
     {
@@ -191,18 +189,17 @@ public class BotStateMachine : MassTransitStateMachine<BotState>
             // If user just says “hello” or “unknown” in the initial state, do a quick nudge:
             When(IntentEvt, ctx => ctx.Message.Intent == IntentType.Greeting)
                 .ThenAsync(ctx => ctx.Publish(new NudgeCmd(
-                    ctx.Saga.CorrelationId, 
+                    ctx.Saga.CorrelationId,
                     NudgeType.Greeting,
-                    ctx.Saga.PhoneNumber, 
+                    ctx.Saga.PhoneNumber,
                     "👋 Hello! Let me know what you'd like to do next."
                 ))),
-
             When(IntentEvt, ctx => ctx.Message.Intent == IntentType.Unknown)
                 .ThenAsync(ctx => ctx.Publish(new NudgeCmd(
-                    ctx.Saga.CorrelationId, 
+                    ctx.Saga.CorrelationId,
                     NudgeType.Unknown,
                     ctx.Saga.PhoneNumber,
-                    "❓ I didn’t get that. Try 'check balance' or 'send money'." 
+                    "❓ I didn’t get that. Try 'check balance' or 'send money'."
                 ))),
             When(TxOk)
                 .ThenAsync(async ctx =>
@@ -214,7 +211,8 @@ public class BotStateMachine : MassTransitStateMachine<BotState>
                     }
                 }),
             When(TxBad)
-                .PublishAsync(ctx => Task.FromResult(new NudgeCmd(ctx.Saga.CorrelationId, NudgeType.TransferFail, ctx.Saga.PhoneNumber)))
+                .PublishAsync(ctx =>
+                    Task.FromResult(new NudgeCmd(ctx.Saga.CorrelationId, NudgeType.TransferFail, ctx.Saga.PhoneNumber)))
         );
 
         // AskFullName
@@ -230,20 +228,21 @@ public class BotStateMachine : MassTransitStateMachine<BotState>
                 .ThenAsync(SetState("AskNin"))
                 .PublishAsync(ctx => Task.FromResult(new PromptNinCmd(ctx.Saga.CorrelationId)))
                 .TransitionTo(AskNin),
-
             When(TimeoutSchedule.Received)
                 .Unschedule(TimeoutSchedule)
                 .ThenAsync(async ctx =>
                 {
-                    _logger.LogInformation("[AskFullName] Timeout reached for CorrelationId: {Id}", ctx.Saga.CorrelationId);
-                    await ctx.Publish(new NudgeCmd(ctx.Saga.CorrelationId, NudgeType.TimedOut, 
+                    _logger.LogInformation("[AskFullName] Timeout reached for CorrelationId: {Id}",
+                        ctx.Saga.CorrelationId);
+                    await ctx.Publish(new NudgeCmd(ctx.Saga.CorrelationId, NudgeType.TimedOut,
                         ctx.Saga.PhoneNumber!, "⌛ Session expired due to inactivity."));
                 })
                 .Finalize()
         );
 
         // AskNin
-        WhenEnter(AskNin, b => b.Schedule(TimeoutSchedule, ctx => new TimeoutExpired { CorrelationId = ctx.Saga.CorrelationId }));
+        WhenEnter(AskNin,
+            b => b.Schedule(TimeoutSchedule, ctx => new TimeoutExpired { CorrelationId = ctx.Saga.CorrelationId }));
 
         During(AskNin,
             When(NinEvt)
@@ -257,7 +256,6 @@ public class BotStateMachine : MassTransitStateMachine<BotState>
                 .ThenAsync(SetState("NinValidating"))
                 .PublishAsync(ctx => Task.FromResult(new ValidateNinCmd(ctx.Saga.CorrelationId, ctx.Message.NIN)))
                 .TransitionTo(NinValidating),
-
             When(TimeoutSchedule.Received)
                 .Unschedule(TimeoutSchedule)
                 .ThenAsync(async ctx =>
@@ -275,21 +273,21 @@ public class BotStateMachine : MassTransitStateMachine<BotState>
                 .ThenAsync(SetState("AskBvn"))
                 .PublishAsync(ctx => Task.FromResult(new PromptBvnCmd(ctx.Saga.CorrelationId)))
                 .TransitionTo(AskBvn),
-
             When(NinBad)
                 .ThenAsync(async ctx =>
                 {
                     _logger.LogWarning("[NinValidating] NIN validation failed for CorrelationId: {Id}",
                         ctx.Saga.CorrelationId);
                     await SetState("AskNin")(ctx);
-                    await ctx.Publish(new NudgeCmd(ctx.Saga.CorrelationId, NudgeType.InvalidNin, 
+                    await ctx.Publish(new NudgeCmd(ctx.Saga.CorrelationId, NudgeType.InvalidNin,
                         ctx.Saga.PhoneNumber, "❌ That NIN didn’t validate. Please re-enter your 11-digit NIN."));
                 })
                 .TransitionTo(AskNin)
         );
 
         // AskBvn
-        WhenEnter(AskBvn, b => b.Schedule(TimeoutSchedule, ctx => new TimeoutExpired { CorrelationId = ctx.Saga.CorrelationId }));
+        WhenEnter(AskBvn,
+            b => b.Schedule(TimeoutSchedule, ctx => new TimeoutExpired { CorrelationId = ctx.Saga.CorrelationId }));
 
         During(AskBvn,
             When(BvnEvt)
@@ -303,13 +301,12 @@ public class BotStateMachine : MassTransitStateMachine<BotState>
                 .ThenAsync(SetState("BvnValidating"))
                 .PublishAsync(ctx => Task.FromResult(new ValidateBvnCmd(ctx.Saga.CorrelationId, ctx.Message.BVN)))
                 .TransitionTo(BvnValidating),
-
             When(TimeoutSchedule.Received)
                 .Unschedule(TimeoutSchedule)
                 .ThenAsync(async ctx =>
                 {
                     _logger.LogInformation("[AskBvn] Timeout reached for CorrelationId: {Id}", ctx.Saga.CorrelationId);
-                    await ctx.Publish(new NudgeCmd(ctx.Saga.CorrelationId, NudgeType.TimedOut, 
+                    await ctx.Publish(new NudgeCmd(ctx.Saga.CorrelationId, NudgeType.TimedOut,
                         ctx.Saga.PhoneNumber!, "⌛ Session expired due to inactivity."));
                 })
                 .Finalize()
@@ -321,8 +318,8 @@ public class BotStateMachine : MassTransitStateMachine<BotState>
                 .ThenAsync(async ctx =>
                 {
                     // Double-check we have all the data
-                    if (string.IsNullOrWhiteSpace(ctx.Saga.TempName) 
-                        || string.IsNullOrWhiteSpace(ctx.Saga.PhoneNumber) 
+                    if (string.IsNullOrWhiteSpace(ctx.Saga.TempName)
+                        || string.IsNullOrWhiteSpace(ctx.Saga.PhoneNumber)
                         || string.IsNullOrWhiteSpace(ctx.Saga.TempNIN)
                         || string.IsNullOrWhiteSpace(ctx.Saga.TempBVN))
                     {
@@ -337,12 +334,11 @@ public class BotStateMachine : MassTransitStateMachine<BotState>
                     await SetState("AwaitingKyc")(ctx);
 
                     await ctx.Publish(new SignupCmd(
-                        ctx.Saga.CorrelationId, 
+                        ctx.Saga.CorrelationId,
                         new SignupPayload(ctx.Saga.TempName, ctx.Saga.PhoneNumber, ctx.Saga.TempNIN, ctx.Saga.TempBVN)
                     ));
                 })
                 .TransitionTo(AwaitingKyc),
-
             When(BvnBad)
                 .ThenAsync(async ctx =>
                 {
@@ -360,7 +356,8 @@ public class BotStateMachine : MassTransitStateMachine<BotState>
             When(SignOk)
                 .ThenAsync(async ctx =>
                 {
-                    _logger.LogInformation("[AwaitingKyc] Signup succeeded for CorrelationId: {Id}", ctx.Saga.CorrelationId);
+                    _logger.LogInformation("[AwaitingKyc] Signup succeeded for CorrelationId: {Id}",
+                        ctx.Saga.CorrelationId);
                     await SetState("AwaitingBankLink")(ctx);
 
                     // Mark the user in conversation state
@@ -371,17 +368,15 @@ public class BotStateMachine : MassTransitStateMachine<BotState>
                 })
                 .PublishAsync(ctx => Task.FromResult(new KycCmd(ctx.Saga.CorrelationId)))
                 .TransitionTo(AwaitingBankLink),
-
             When(KycBad)
                 .ThenAsync(async ctx =>
                 {
                     ctx.Saga.LastFailureReason = "KycRejected";
-                    await NudgeAndLog(ctx, _logger, 
-                        "❌ KYC process failed. Please check your details and try again.", 
+                    await NudgeAndLog(ctx, _logger,
+                        "❌ KYC process failed. Please check your details and try again.",
                         NudgeType.KycFailed, "AwaitingKyc");
                 })
                 .Finalize(),
-
             When(SignBad)
                 .ThenAsync(async ctx =>
                 {
@@ -411,12 +406,11 @@ public class BotStateMachine : MassTransitStateMachine<BotState>
                     await SetState("Ready")(ctx);
                 })
                 .TransitionTo(Ready),
-
             When(BankOk)
                 .ThenAsync(SetState("AwaitingPinSetup"))
-                .PublishAsync(ctx => Task.FromResult(new PinSetupCmd(ctx.Saga.CorrelationId, string.Empty, string.Empty)))
+                .PublishAsync(ctx =>
+                    Task.FromResult(new PinSetupCmd(ctx.Saga.CorrelationId, string.Empty, string.Empty)))
                 .TransitionTo(AwaitingPinSetup),
-
             When(BankBad)
                 .ThenAsync(async ctx =>
                 {
@@ -450,7 +444,7 @@ public class BotStateMachine : MassTransitStateMachine<BotState>
                     ctx.Saga.PendingPayloadHash = hash;
 
                     // Ask user for PIN
-                    await ctx.Publish(new NudgeCmd(ctx.Saga.CorrelationId, NudgeType.BadPin, 
+                    await ctx.Publish(new NudgeCmd(ctx.Saga.CorrelationId, NudgeType.BadPin,
                         ctx.Saga.PhoneNumber!, "🔐 Please enter your PIN to proceed."));
 
                     // Switch to AwaitingPinValidate
@@ -460,13 +454,15 @@ public class BotStateMachine : MassTransitStateMachine<BotState>
 
             // A fallback scenario: if “PinOk” arrives while we do NOT have a pending payload, 
             // we remain in Ready
-            When(PinOk, ctx => ctx.Saga.PendingIntentType.HasValue && string.IsNullOrEmpty(ctx.Saga.PendingIntentPayload))
+            When(PinOk,
+                    ctx => ctx.Saga.PendingIntentType.HasValue && string.IsNullOrEmpty(ctx.Saga.PendingIntentPayload))
                 .ThenAsync(async ctx =>
                 {
-                    _logger.LogWarning("[READY->PinOk] Empty PendingIntentPayload for CorrelationId: {Id}", ctx.Saga.CorrelationId);
-                    await ctx.Publish(new NudgeCmd(ctx.Saga.CorrelationId, NudgeType.Unknown, 
+                    _logger.LogWarning("[READY->PinOk] Empty PendingIntentPayload for CorrelationId: {Id}",
+                        ctx.Saga.CorrelationId);
+                    await ctx.Publish(new NudgeCmd(ctx.Saga.CorrelationId, NudgeType.Unknown,
                         ctx.Saga.PhoneNumber, "❗ Something went wrong. Please try again."));
-                    
+
                     ctx.Saga.PendingIntentType = null;
                     ctx.Saga.PendingPayloadHash = null;
                     await SetState("Ready")(ctx);
@@ -475,7 +471,8 @@ public class BotStateMachine : MassTransitStateMachine<BotState>
         );
 
         // AwaitingPinValidate
-        WhenEnter(AwaitingPinValidate, b => b.Schedule(TimeoutSchedule, ctx => new TimeoutExpired { CorrelationId = ctx.Saga.CorrelationId }));
+        WhenEnter(AwaitingPinValidate,
+            b => b.Schedule(TimeoutSchedule, ctx => new TimeoutExpired { CorrelationId = ctx.Saga.CorrelationId }));
 
         During(AwaitingPinValidate,
             // If user enters a bad PIN
@@ -506,8 +503,8 @@ public class BotStateMachine : MassTransitStateMachine<BotState>
                     if (string.IsNullOrEmpty(ctx.Saga.PendingIntentPayload))
                     {
                         // If we have no pending payload, there's nothing to do
-                        await NudgeAndLog(ctx, _logger, 
-                            "❗ No pending intent found.", 
+                        await NudgeAndLog(ctx, _logger,
+                            "❗ No pending intent found.",
                             NudgeType.Unknown, "PIN_OK:NoIntent");
                         return;
                     }
@@ -518,13 +515,14 @@ public class BotStateMachine : MassTransitStateMachine<BotState>
                         {
                             case IntentType.Transfer:
                                 var detectedXfer =
-                                    JsonSerializer.Deserialize<UserIntentDetected>(ctx.Saga.PendingIntentPayload!, DedupeJsonOptions)!;
+                                    JsonSerializer.Deserialize<UserIntentDetected>(ctx.Saga.PendingIntentPayload!,
+                                        DedupeJsonOptions)!;
                                 var sp = ctx.TryGetPayload<IServiceProvider>(out var provider) ? provider : null;
                                 var refGen = sp?.GetService<IReferenceGenerator>();
 
                                 if (refGen == null)
                                 {
-                                    await NudgeAndLog(ctx, _logger, 
+                                    await NudgeAndLog(ctx, _logger,
                                         "⚠️ Transfer could not be processed: missing reference generator",
                                         NudgeType.Unknown, "PIN_OK:MissingRefGen");
                                     return;
@@ -535,7 +533,7 @@ public class BotStateMachine : MassTransitStateMachine<BotState>
 
                                 // Publish the TransferCmd
                                 await ctx.Publish(new TransferCmd(
-                                    ctx.Saga.CorrelationId, 
+                                    ctx.Saga.CorrelationId,
                                     detectedXfer.TransferPayload,
                                     reference
                                 ));
@@ -544,15 +542,16 @@ public class BotStateMachine : MassTransitStateMachine<BotState>
 
                             case IntentType.BillPay:
                                 var detectedBill =
-                                    JsonSerializer.Deserialize<UserIntentDetected>(ctx.Saga.PendingIntentPayload!, DedupeJsonOptions)!;
+                                    JsonSerializer.Deserialize<UserIntentDetected>(ctx.Saga.PendingIntentPayload!,
+                                        DedupeJsonOptions)!;
                                 // Publish the BillPayCmd
                                 await ctx.Publish(new BillPayCmd(ctx.Saga.CorrelationId, detectedBill.BillPayload!));
                                 ctx.Saga.PinValidated = true;
                                 break;
 
                             default:
-                                await NudgeAndLog(ctx, _logger, 
-                                    "❗ Invalid intent state.", 
+                                await NudgeAndLog(ctx, _logger,
+                                    "❗ Invalid intent state.",
                                     NudgeType.Unknown, "PIN_OK:InvalidIntent");
                                 break;
                         }
@@ -560,8 +559,8 @@ public class BotStateMachine : MassTransitStateMachine<BotState>
                     catch (Exception ex)
                     {
                         _logger.LogError(ex, "[PIN_OK] Error processing intent for {Id}", ctx.Saga.CorrelationId);
-                        await NudgeAndLog(ctx, _logger, 
-                            "❗ Something went wrong.", 
+                        await NudgeAndLog(ctx, _logger,
+                            "❗ Something went wrong.",
                             NudgeType.Unknown, "PIN_OK:Error");
                         throw;
                     }
@@ -570,10 +569,7 @@ public class BotStateMachine : MassTransitStateMachine<BotState>
                 {
                     // If we succeeded, we set “PinValidated = true” and move to Ready
                     // If not, we remain in AwaitingPinValidate
-                    if (!context.Saga.PinValidated)
-                    {
-                        ResetIntentState(context.Saga);
-                    }
+                    if (!context.Saga.PinValidated) ResetIntentState(context.Saga);
                 })
                 .If(ctx => ctx.Saga.PinValidated,
                     thenBinder => thenBinder.TransitionTo(Ready))
@@ -588,25 +584,26 @@ public class BotStateMachine : MassTransitStateMachine<BotState>
             When(BillBad)
                 .ThenAsync(async ctx =>
                 {
-                    await NudgeAndLog(ctx, _logger, 
-                        "❌ Your bill payment could not be completed.", 
+                    await NudgeAndLog(ctx, _logger,
+                        "❌ Your bill payment could not be completed.",
                         NudgeType.BillFailed, "BillBad");
                 }),
-
             When(RecExec)
                 .ThenAsync(async ctx =>
                 {
                     if (string.IsNullOrEmpty(ctx.Saga.PendingIntentPayload) || ctx.Saga.PendingIntentType is null)
                     {
-                        await NudgeAndLog(ctx, _logger, 
-                            "⚠️ Couldn't process your recurring transaction.", 
+                        await NudgeAndLog(ctx, _logger,
+                            "⚠️ Couldn't process your recurring transaction.",
                             NudgeType.Unknown, "RecExec:MissingPayload");
                         return;
                     }
 
                     try
                     {
-                        var detected = JsonSerializer.Deserialize<UserIntentDetected>(ctx.Saga.PendingIntentPayload, DedupeJsonOptions)!;
+                        var detected =
+                            JsonSerializer.Deserialize<UserIntentDetected>(ctx.Saga.PendingIntentPayload,
+                                DedupeJsonOptions)!;
                         var sp = ctx.TryGetPayload<IServiceProvider>(out var provider) ? provider : null;
                         var refGen = sp?.GetService<IReferenceGenerator>();
 
@@ -617,7 +614,8 @@ public class BotStateMachine : MassTransitStateMachine<BotState>
                                     detected.TransferPayload!.ToAccount, detected.TransferPayload.BankCode);
                                 _logger.LogInformation("[RecExec] Exec recurring TransferCmd for CorrelationId: {Id}",
                                     ctx.Saga.CorrelationId);
-                                await ctx.Publish(new TransferCmd(ctx.Saga.CorrelationId, detected.TransferPayload!, refId!));
+                                await ctx.Publish(new TransferCmd(ctx.Saga.CorrelationId, detected.TransferPayload!,
+                                    refId!));
                                 break;
 
                             case IntentType.BillPay:
@@ -633,27 +631,25 @@ public class BotStateMachine : MassTransitStateMachine<BotState>
                     {
                         _logger.LogError(ex, "[RecExec] Deserialization failed for CorrelationId: {Id}",
                             ctx.Saga.CorrelationId);
-                        await NudgeAndLog(ctx, _logger, 
-                            "⚠️ Couldn't process your recurring transaction.", 
+                        await NudgeAndLog(ctx, _logger,
+                            "⚠️ Couldn't process your recurring transaction.",
                             NudgeType.Unknown, "RecExec:JsonError");
                     }
                 }),
-
             When(RecBad)
                 .ThenAsync(async ctx =>
                 {
-                    await NudgeAndLog(ctx, _logger, 
-                        "⚠️ A recurring transaction failed. Please re-authenticate.", 
+                    await NudgeAndLog(ctx, _logger,
+                        "⚠️ A recurring transaction failed. Please re-authenticate.",
                         NudgeType.RecurringFailed, "RecBad");
                 })
                 .TransitionTo(AwaitingPinValidate),
-
             When(RecCancel)
                 .ThenAsync(async ctx =>
                 {
                     ResetIntentState(ctx.Saga);
-                    await NudgeAndLog(ctx, _logger, 
-                        "✅ Your recurring transaction has been cancelled.", 
+                    await NudgeAndLog(ctx, _logger,
+                        "✅ Your recurring transaction has been cancelled.",
                         NudgeType.Canceled, "RecCancel");
                 })
                 .Unschedule(TimeoutSchedule)
@@ -665,7 +661,7 @@ public class BotStateMachine : MassTransitStateMachine<BotState>
                 .ThenAsync(async ctx =>
                 {
                     _logger.LogInformation("[Timeout] Session expired for CorrelationId: {Id}", ctx.Saga.CorrelationId);
-                    await ctx.Publish(new NudgeCmd(ctx.Saga.CorrelationId, NudgeType.TimedOut, 
+                    await ctx.Publish(new NudgeCmd(ctx.Saga.CorrelationId, NudgeType.TimedOut,
                         ctx.Saga.PhoneNumber!, "⌛ Session expired due to inactivity."));
                 })
                 .Finalize()

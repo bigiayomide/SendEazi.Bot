@@ -1,5 +1,4 @@
 using System.Net;
-using System.Net.Http;
 using Bot.Core.StateMachine.Helpers;
 using Bot.Tests.TestUtilities;
 using FluentAssertions;
@@ -20,7 +19,8 @@ public class HttpJsonLoggerTests
         await HttpJsonLogger.LogRequest(req, logger);
 
         logger.Entries.Should().HaveCount(1);
-        logger.Entries[0].Message.Should().Contain("POST").And.Contain("https://example.com/api").And.Contain("{\"x\":1}");
+        logger.Entries[0].Message.Should().Contain("POST").And.Contain("https://example.com/api").And
+            .Contain("{\"x\":1}");
     }
 
     [Fact]

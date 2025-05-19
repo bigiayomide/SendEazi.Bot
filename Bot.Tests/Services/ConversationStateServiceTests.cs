@@ -9,90 +9,6 @@ namespace Bot.Tests.Services;
 
 public class ConversationStateServiceTests
 {
-    private class RedisMock
-    {
-        public Mock<IConnectionMultiplexer> Connection { get; } = new();
-        public Mock<IDatabase> Database { get; } = new();
-        public Mock<ITransaction> Transaction { get; } = new();
-        public Dictionary<string, RedisValue> Strings { get; } = new();
-        public Dictionary<string, Dictionary<string, RedisValue>> Hashes { get; } = new();
-        public Dictionary<string, TimeSpan?> Expirations { get; } = new();
-
-        public RedisMock()
-        {
-            Connection.Setup(c => c.GetDatabase(It.IsAny<int>(), It.IsAny<object?>()))
-                .Returns(Database.Object);
-            Database.Setup(d => d.CreateTransaction(It.IsAny<object?>()))
-                .Returns(Transaction.Object);
-
-            Database.Setup(d => d.StringGetAsync(It.IsAny<RedisKey>(), It.IsAny<CommandFlags>()))
-                .Returns((RedisKey k, CommandFlags _) =>
-                {
-                    Strings.TryGetValue(k, out var v);
-                    return Task.FromResult(v);
-                });
-
-            Database.Setup(d => d.HashGetAllAsync(It.IsAny<RedisKey>(), It.IsAny<CommandFlags>()))
-                .Returns((RedisKey k, CommandFlags _) =>
-                {
-                    if (Hashes.TryGetValue(k, out var dict))
-                        return Task.FromResult(dict.Select(e => new HashEntry(e.Key, e.Value)).ToArray());
-                    return Task.FromResult(Array.Empty<HashEntry>());
-                });
-
-            Database.Setup(d => d.HashSetAsync(It.IsAny<RedisKey>(), It.IsAny<RedisValue>(), It.IsAny<RedisValue>(), It.IsAny<When>(), It.IsAny<CommandFlags>()))
-                .Callback((RedisKey key, RedisValue field, RedisValue val, When w, CommandFlags f) =>
-                {
-                    if (!Hashes.ContainsKey(key)) Hashes[key] = new();
-                    Hashes[key][field] = val;
-                })
-                .ReturnsAsync(true);
-
-            Database.Setup(d => d.HashGetAsync(It.IsAny<RedisKey>(), It.IsAny<RedisValue>(), It.IsAny<CommandFlags>()))
-                .Returns((RedisKey key, RedisValue field, CommandFlags f) =>
-                {
-                    if (Hashes.TryGetValue(key, out var dict) && dict.TryGetValue(field, out var val))
-                        return Task.FromResult(val);
-                    return Task.FromResult(RedisValue.Null);
-                });
-
-            Database.Setup(d => d.KeyExpireAsync(It.IsAny<RedisKey>(), It.IsAny<TimeSpan?>(), It.IsAny<CommandFlags>()))
-                .Callback((RedisKey key, TimeSpan? exp, CommandFlags f) => Expirations[key] = exp)
-                .ReturnsAsync(true);
-
-            Database.Setup(d => d.StringSetAsync(It.IsAny<RedisKey>(), It.IsAny<RedisValue>(), It.IsAny<TimeSpan?>(), It.IsAny<When>(), It.IsAny<CommandFlags>()))
-                .Callback((RedisKey key, RedisValue val, TimeSpan? exp, When w, CommandFlags f) =>
-                {
-                    Strings[key] = val;
-                    Expirations[key] = exp;
-                })
-                .ReturnsAsync(true);
-
-            Transaction.Setup(t => t.HashSetAsync(It.IsAny<RedisKey>(), It.IsAny<HashEntry[]>(), It.IsAny<CommandFlags>()))
-                .Callback((RedisKey key, HashEntry[] entries, CommandFlags f) =>
-                {
-                    if (!Hashes.ContainsKey(key)) Hashes[key] = new();
-                    foreach (var e in entries) Hashes[key][e.Name] = e.Value;
-                })
-                .ReturnsAsync(true);
-
-            Transaction.Setup(t => t.KeyExpireAsync(It.IsAny<RedisKey>(), It.IsAny<TimeSpan?>(), It.IsAny<CommandFlags>()))
-                .Callback((RedisKey key, TimeSpan? exp, CommandFlags f) => Expirations[key] = exp)
-                .ReturnsAsync(true);
-
-            Transaction.Setup(t => t.StringSetAsync(It.IsAny<RedisKey>(), It.IsAny<RedisValue>(), It.IsAny<TimeSpan?>(), It.IsAny<When>(), It.IsAny<CommandFlags>()))
-                .Callback((RedisKey key, RedisValue val, TimeSpan? exp, When w, CommandFlags f) =>
-                {
-                    Strings[key] = val;
-                    Expirations[key] = exp;
-                })
-                .ReturnsAsync(true);
-
-            Transaction.Setup(t => t.ExecuteAsync(It.IsAny<CommandFlags>()))
-                .ReturnsAsync(true);
-        }
-    }
-
     private static ConversationStateService CreateService(RedisMock redis, out ConversationStateOptions opts)
     {
         opts = new ConversationStateOptions { RedisKeyPrefix = "session:", SessionTtl = TimeSpan.FromMinutes(5) };
@@ -167,5 +83,94 @@ public class ConversationStateServiceTests
         result!.SessionId.Should().Be(session.SessionId);
         result.PhoneNumber.Should().Be(phone);
         result.UserId.Should().Be(userId);
+    }
+
+    private class RedisMock
+    {
+        public RedisMock()
+        {
+            Connection.Setup(c => c.GetDatabase(It.IsAny<int>(), It.IsAny<object?>()))
+                .Returns(Database.Object);
+            Database.Setup(d => d.CreateTransaction(It.IsAny<object?>()))
+                .Returns(Transaction.Object);
+
+            Database.Setup(d => d.StringGetAsync(It.IsAny<RedisKey>(), It.IsAny<CommandFlags>()))
+                .Returns((RedisKey k, CommandFlags _) =>
+                {
+                    Strings.TryGetValue(k, out var v);
+                    return Task.FromResult(v);
+                });
+
+            Database.Setup(d => d.HashGetAllAsync(It.IsAny<RedisKey>(), It.IsAny<CommandFlags>()))
+                .Returns((RedisKey k, CommandFlags _) =>
+                {
+                    if (Hashes.TryGetValue(k, out var dict))
+                        return Task.FromResult(dict.Select(e => new HashEntry(e.Key, e.Value)).ToArray());
+                    return Task.FromResult(Array.Empty<HashEntry>());
+                });
+
+            Database.Setup(d => d.HashSetAsync(It.IsAny<RedisKey>(), It.IsAny<RedisValue>(), It.IsAny<RedisValue>(),
+                    It.IsAny<When>(), It.IsAny<CommandFlags>()))
+                .Callback((RedisKey key, RedisValue field, RedisValue val, When w, CommandFlags f) =>
+                {
+                    if (!Hashes.ContainsKey(key)) Hashes[key] = new Dictionary<string, RedisValue>();
+                    Hashes[key][field] = val;
+                })
+                .ReturnsAsync(true);
+
+            Database.Setup(d => d.HashGetAsync(It.IsAny<RedisKey>(), It.IsAny<RedisValue>(), It.IsAny<CommandFlags>()))
+                .Returns((RedisKey key, RedisValue field, CommandFlags f) =>
+                {
+                    if (Hashes.TryGetValue(key, out var dict) && dict.TryGetValue(field, out var val))
+                        return Task.FromResult(val);
+                    return Task.FromResult(RedisValue.Null);
+                });
+
+            Database.Setup(d => d.KeyExpireAsync(It.IsAny<RedisKey>(), It.IsAny<TimeSpan?>(), It.IsAny<CommandFlags>()))
+                .Callback((RedisKey key, TimeSpan? exp, CommandFlags f) => Expirations[key] = exp)
+                .ReturnsAsync(true);
+
+            Database.Setup(d => d.StringSetAsync(It.IsAny<RedisKey>(), It.IsAny<RedisValue>(), It.IsAny<TimeSpan?>(),
+                    It.IsAny<When>(), It.IsAny<CommandFlags>()))
+                .Callback((RedisKey key, RedisValue val, TimeSpan? exp, When w, CommandFlags f) =>
+                {
+                    Strings[key] = val;
+                    Expirations[key] = exp;
+                })
+                .ReturnsAsync(true);
+
+            Transaction.Setup(t =>
+                    t.HashSetAsync(It.IsAny<RedisKey>(), It.IsAny<HashEntry[]>(), It.IsAny<CommandFlags>()))
+                .Callback((RedisKey key, HashEntry[] entries, CommandFlags f) =>
+                {
+                    if (!Hashes.ContainsKey(key)) Hashes[key] = new Dictionary<string, RedisValue>();
+                    foreach (var e in entries) Hashes[key][e.Name] = e.Value;
+                })
+                .Returns(Task.FromResult(true));
+
+            Transaction.Setup(t =>
+                    t.KeyExpireAsync(It.IsAny<RedisKey>(), It.IsAny<TimeSpan?>(), It.IsAny<CommandFlags>()))
+                .Callback((RedisKey key, TimeSpan? exp, CommandFlags f) => Expirations[key] = exp)
+                .ReturnsAsync(true);
+
+            Transaction.Setup(t => t.StringSetAsync(It.IsAny<RedisKey>(), It.IsAny<RedisValue>(), It.IsAny<TimeSpan?>(),
+                    It.IsAny<When>(), It.IsAny<CommandFlags>()))
+                .Callback((RedisKey key, RedisValue val, TimeSpan? exp, When w, CommandFlags f) =>
+                {
+                    Strings[key] = val;
+                    Expirations[key] = exp;
+                })
+                .ReturnsAsync(true);
+
+            Transaction.Setup(t => t.ExecuteAsync(It.IsAny<CommandFlags>()))
+                .ReturnsAsync(true);
+        }
+
+        public Mock<IConnectionMultiplexer> Connection { get; } = new();
+        public Mock<IDatabase> Database { get; } = new();
+        public Mock<ITransaction> Transaction { get; } = new();
+        public Dictionary<string, RedisValue> Strings { get; } = new();
+        public Dictionary<string, Dictionary<string, RedisValue>> Hashes { get; } = new();
+        public Dictionary<string, TimeSpan?> Expirations { get; } = new();
     }
 }

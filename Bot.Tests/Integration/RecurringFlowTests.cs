@@ -11,7 +11,6 @@ using Bot.Shared.Models;
 using Bot.Tests.TestUtilities;
 using MassTransit;
 using MassTransit.Testing;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Moq;
 
@@ -19,12 +18,12 @@ namespace Bot.Tests.Integration;
 
 public class RecurringFlowTests : IAsyncLifetime
 {
-    private ServiceProvider _provider = null!;
-    private ITestHarness _harness = null!;
-    private ISagaStateMachineTestHarness<BotStateMachine, BotState> _sagaHarness = null!;
-    private ApplicationDbContext _db = null!;
-    private readonly Mock<IConversationStateService> _stateSvc = new();
     private readonly Mock<IBankProvider> _bank = new();
+    private readonly Mock<IConversationStateService> _stateSvc = new();
+    private ApplicationDbContext _db = null!;
+    private ITestHarness _harness = null!;
+    private ServiceProvider _provider = null!;
+    private ISagaStateMachineTestHarness<BotStateMachine, BotState> _sagaHarness = null!;
 
     public async Task InitializeAsync()
     {
@@ -34,7 +33,7 @@ public class RecurringFlowTests : IAsyncLifetime
         services.AddMassTransitTestHarness(cfg =>
         {
             cfg.AddSagaStateMachine<BotStateMachine, BotState>()
-               .InMemoryRepository();
+                .InMemoryRepository();
             cfg.AddConsumer<RecurringCmdConsumer>();
             cfg.AddConsumer<TransferCmdConsumer>();
         });
@@ -82,7 +81,7 @@ public class RecurringFlowTests : IAsyncLifetime
         var sid = NewId.NextGuid();
 
         await _harness.Bus.Publish(new UserIntentDetected(sid, IntentType.Signup,
-            SignupPayload:new SignupPayload("User", "+2348000000000", "12345678901", "12345678901")));
+            SignupPayload: new SignupPayload("User", "+2348000000000", "12345678901", "12345678901")));
         await _sagaHarness.Exists(sid, x => x.NinValidating, TimeSpan.FromSeconds(5));
 
         await _harness.Bus.Publish(new NinVerified(sid, "12345678901"));
@@ -117,7 +116,8 @@ public class RecurringFlowTests : IAsyncLifetime
         var transfer = new TransferPayload("2222", "999", 100, "Recurring");
         var saga = _sagaHarness.Sagas.Contains(sid);
         saga.PendingIntentType = IntentType.Transfer;
-        saga.PendingIntentPayload = JsonSerializer.Serialize(new UserIntentDetected(sid, IntentType.Transfer, TransferPayload: transfer));
+        saga.PendingIntentPayload =
+            JsonSerializer.Serialize(new UserIntentDetected(sid, IntentType.Transfer, transfer));
 
         await _harness.Bus.Publish(new RecurringCmd(sid,
             new RecurringPayload(Guid.NewGuid(), transfer, "* * * * *")));
@@ -139,13 +139,15 @@ public class RecurringFlowTests : IAsyncLifetime
         var transfer = new TransferPayload("3333", "555", 50, "RecurringFail");
         var saga = _sagaHarness.Sagas.Contains(sid);
         saga.PendingIntentType = IntentType.Transfer;
-        saga.PendingIntentPayload = JsonSerializer.Serialize(new UserIntentDetected(sid, IntentType.Transfer, TransferPayload: transfer));
+        saga.PendingIntentPayload =
+            JsonSerializer.Serialize(new UserIntentDetected(sid, IntentType.Transfer, transfer));
 
         await _harness.Bus.Publish(new RecurringFailed(sid, "fail"));
         await _harness.InactivityTask;
 
         saga = _sagaHarness.Sagas.Contains(sid);
         Assert.Equal("AwaitingPinValidate", saga?.CurrentState);
-        Assert.True(await _harness.Published.Any<NudgeCmd>(x => x.Context.Message.CorrelationId == sid && x.Context.Message.NudgeType == NudgeType.RecurringFailed));
+        Assert.True(await _harness.Published.Any<NudgeCmd>(x =>
+            x.Context.Message.CorrelationId == sid && x.Context.Message.NudgeType == NudgeType.RecurringFailed));
     }
 }

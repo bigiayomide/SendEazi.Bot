@@ -1,18 +1,18 @@
 using System.Net;
-using System.Net.Http;
 using System.Net.Http.Json;
 using System.Text.Json;
 using Bot.Core.Services;
+using Bot.Tests.TestUtilities;
 using FluentAssertions;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using Bot.Tests.TestUtilities;
 
 namespace Bot.Tests.Services;
 
 public class WhatsAppServiceTests
 {
-    private static (WhatsAppService svc, MockHttpMessageHandler handler) CreateService(Func<HttpRequestMessage, HttpResponseMessage> handlerFunc, TimeSpan? ttl = null)
+    private static (WhatsAppService svc, MockHttpMessageHandler handler) CreateService(
+        Func<HttpRequestMessage, HttpResponseMessage> handlerFunc, TimeSpan? ttl = null)
     {
         var handler = new MockHttpMessageHandler(handlerFunc);
         var client = new HttpClient(handler);
@@ -130,7 +130,7 @@ public class WhatsAppServiceTests
     {
         HttpRequestMessage? first = null;
         HttpRequestMessage? second = null;
-        int count = 0;
+        var count = 0;
         var (svc, _) = CreateService(r =>
         {
             count++;
@@ -142,17 +142,15 @@ public class WhatsAppServiceTests
                     Content = JsonContent.Create(new { id = "med" })
                 };
             }
-            else
+
+            second = r;
+            return new HttpResponseMessage(HttpStatusCode.OK)
             {
-                second = r;
-                return new HttpResponseMessage(HttpStatusCode.OK)
-                {
-                    Content = JsonContent.Create(new { messages = new[] { new { id = "msg5" } } })
-                };
-            }
+                Content = JsonContent.Create(new { messages = new[] { new { id = "msg5" } } })
+            };
         });
 
-        using var stream = new MemoryStream(new byte[] {1,2,3});
+        using var stream = new MemoryStream(new byte[] { 1, 2, 3 });
         var id = await svc.SendVoiceAsync("900", stream);
 
         id.Should().Be("msg5");
@@ -169,22 +167,18 @@ public class WhatsAppServiceTests
     public async Task EphemeralDeletion_Triggers_DeleteMessage()
     {
         HttpRequestMessage? deleteReq = null;
-        int count = 0;
+        var count = 0;
         var (svc, _) = CreateService(r =>
         {
             count++;
             if (count == 1)
-            {
                 return new HttpResponseMessage(HttpStatusCode.OK)
                 {
                     Content = JsonContent.Create(new { messages = new[] { new { id = "msgX" } } })
                 };
-            }
-            else
-            {
-                deleteReq = r;
-                return new HttpResponseMessage(HttpStatusCode.OK);
-            }
+
+            deleteReq = r;
+            return new HttpResponseMessage(HttpStatusCode.OK);
         }, TimeSpan.FromMilliseconds(20));
 
         await svc.SendTextMessageAsync("555", "bye");

@@ -10,10 +10,12 @@ namespace Bot.Tests.Services;
 
 public class BillingServiceTests
 {
-    private ApplicationDbContext CreateDb(string name) =>
-        new(new DbContextOptionsBuilder<ApplicationDbContext>()
+    private ApplicationDbContext CreateDb(string name)
+    {
+        return new ApplicationDbContext(new DbContextOptionsBuilder<ApplicationDbContext>()
             .UseInMemoryDatabase(name)
             .Options);
+    }
 
     [Fact]
     public async Task HandleTransferCompletedAsync_Should_Create_Fee_Record()
@@ -45,8 +47,16 @@ public class BillingServiceTests
     public async Task SweepFeesAsync_Should_Mark_Fees_As_Swept_And_Log()
     {
         var db = CreateDb("fee-sweep");
-        db.FeeRecords.Add(new FeeRecord { Id = Guid.NewGuid(), TransactionId = Guid.NewGuid(), Amount = 10m, CreatedAt = DateTime.UtcNow, Swept = false });
-        db.FeeRecords.Add(new FeeRecord { Id = Guid.NewGuid(), TransactionId = Guid.NewGuid(), Amount = 20m, CreatedAt = DateTime.UtcNow, Swept = false });
+        db.FeeRecords.Add(new FeeRecord
+        {
+            Id = Guid.NewGuid(), TransactionId = Guid.NewGuid(), Amount = 10m, CreatedAt = DateTime.UtcNow,
+            Swept = false
+        });
+        db.FeeRecords.Add(new FeeRecord
+        {
+            Id = Guid.NewGuid(), TransactionId = Guid.NewGuid(), Amount = 20m, CreatedAt = DateTime.UtcNow,
+            Swept = false
+        });
         await db.SaveChangesAsync();
 
         var logger = new Mock<ILogger<BillingService>>();

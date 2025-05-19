@@ -1,23 +1,21 @@
 using Bot.Core.Services;
 using Bot.Core.StateMachine;
-using Bot.Shared;
 using Bot.Shared.DTOs;
-using Bot.Shared.Models;
 using Bot.Shared.Enums;
+using Bot.Shared.Models;
 using MassTransit;
 using MassTransit.Testing;
 using Microsoft.Extensions.DependencyInjection;
 using Moq;
-using Xunit;
 
 namespace Bot.Tests.StateMachine;
 
 public class BotStateMachineWebhookTests : IAsyncLifetime
 {
-    private ServiceProvider _provider = null!;
-    private ITestHarness _harness = null!;
-    private ISagaStateMachineTestHarness<BotStateMachine, BotState> _sagaHarness = null!;
     private readonly Mock<IConversationStateService> _stateServiceMock = new();
+    private ITestHarness _harness = null!;
+    private ServiceProvider _provider = null!;
+    private ISagaStateMachineTestHarness<BotStateMachine, BotState> _sagaHarness = null!;
 
     public async Task InitializeAsync()
     {
@@ -26,7 +24,7 @@ public class BotStateMachineWebhookTests : IAsyncLifetime
             .AddMassTransitTestHarness(cfg =>
             {
                 cfg.AddSagaStateMachine<BotStateMachine, BotState>()
-                   .InMemoryRepository();
+                    .InMemoryRepository();
             })
             .BuildServiceProvider(true);
 
@@ -42,7 +40,6 @@ public class BotStateMachineWebhookTests : IAsyncLifetime
             .Returns(Task.CompletedTask);
 
         await _harness.Start();
-        
     }
 
     public async Task DisposeAsync()
@@ -101,5 +98,4 @@ public class BotStateMachineWebhookTests : IAsyncLifetime
 
         Assert.Equal(1, count);
     }
-
 }

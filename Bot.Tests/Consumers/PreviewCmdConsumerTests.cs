@@ -1,5 +1,4 @@
 using Bot.Core.Services;
-using Bot.Core.StateMachine;
 using Bot.Core.StateMachine.Consumers.UX;
 using Bot.Shared.DTOs;
 using Bot.Shared.Enums;
@@ -44,7 +43,7 @@ public class PreviewCmdConsumerTests
             PhoneNumber = "2349000000000"
         });
 
-        var cmd = new PreviewCmd(userId, TransactionId: txId);
+        var cmd = new PreviewCmd(userId, txId);
         var ctx = Mock.Of<ConsumeContext<PreviewCmd>>(c => c.Message == cmd);
 
         var consumer = new PreviewCmdConsumer(wa.Object, db, userSvc.Object);
@@ -55,7 +54,6 @@ public class PreviewCmdConsumerTests
             "2349000000000",
             It.Is<object>(o => o.GetType().GetProperty("title").GetValue(o).ToString() == "✅ Transfer Successful")
         ), Times.Once);
-
     }
 
     [Fact]
@@ -145,7 +143,7 @@ public class PreviewCmdConsumerTests
         var userSvc = new Mock<IUserService>();
         userSvc.Setup(s => s.GetByIdAsync(userId)).ReturnsAsync((User?)null); // simulate user not found
 
-        var cmd = new PreviewCmd(userId, TransactionId: txId);
+        var cmd = new PreviewCmd(userId, txId);
         var ctx = Mock.Of<ConsumeContext<PreviewCmd>>(c => c.Message == cmd);
 
         var consumer = new PreviewCmdConsumer(wa.Object, db, userSvc.Object);

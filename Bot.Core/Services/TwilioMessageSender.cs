@@ -30,5 +30,3 @@ public class TwilioMessageSender : ITwilioMessageSender
         return msg.Sid;
     }
 }
-
-

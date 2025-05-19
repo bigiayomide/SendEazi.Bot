@@ -1,7 +1,6 @@
 using Bot.Core.StateMachine.Mappers;
 using Bot.Shared.Models;
 using FluentAssertions;
-using Xunit;
 
 namespace Bot.Tests.Mappers;
 

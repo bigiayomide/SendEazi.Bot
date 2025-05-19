@@ -17,7 +17,8 @@ public interface ISpeechRecognizer : IAsyncDisposable
 
 public interface ISpeechRecognizerFactory
 {
-    ISpeechRecognizer Create(SpeechConfig config, AutoDetectSourceLanguageConfig autoDetectConfig, AudioConfig audioConfig);
+    ISpeechRecognizer Create(SpeechConfig config, AutoDetectSourceLanguageConfig autoDetectConfig,
+        AudioConfig audioConfig);
 }
 
 public class SpeechRecognizerWrapper(SpeechRecognizer recognizer) : ISpeechRecognizer
@@ -38,14 +39,18 @@ public class SpeechRecognizerWrapper(SpeechRecognizer recognizer) : ISpeechRecog
 
 public class DefaultSpeechRecognizerFactory : ISpeechRecognizerFactory
 {
-    public ISpeechRecognizer Create(SpeechConfig config, AutoDetectSourceLanguageConfig autoDetectConfig, AudioConfig audioConfig)
-        => new SpeechRecognizerWrapper(new SpeechRecognizer(config, autoDetectConfig, audioConfig));
+    public ISpeechRecognizer Create(SpeechConfig config, AutoDetectSourceLanguageConfig autoDetectConfig,
+        AudioConfig audioConfig)
+    {
+        return new SpeechRecognizerWrapper(new SpeechRecognizer(config, autoDetectConfig, audioConfig));
+    }
 }
 
-public class TranscriptionService(string subscriptionKey, string region, ISpeechRecognizerFactory? factory = null) : ITranscriptionService
+public class TranscriptionService(string subscriptionKey, string region, ISpeechRecognizerFactory? factory = null)
+    : ITranscriptionService
 {
-    private readonly SpeechConfig _speechConfig = SpeechConfig.FromSubscription(subscriptionKey, region);
     private readonly ISpeechRecognizerFactory _factory = factory ?? new DefaultSpeechRecognizerFactory();
+    private readonly SpeechConfig _speechConfig = SpeechConfig.FromSubscription(subscriptionKey, region);
 
     public async Task<(string Text, string DetectedLanguage)> TranscribeAsync(Stream audioStream,
         string[] languageCodes)
@@ -65,10 +70,7 @@ public class TranscriptionService(string subscriptionKey, string region, ISpeech
         await using var recognizer = _factory.Create(_speechConfig, autoDetectConfig, audioConfig);
         var result = await recognizer.RecognizeOnceAsync();
 
-        if (result.Reason == ResultReason.RecognizedSpeech)
-        {
-            return (result.Text, result.DetectedLanguage);
-        }
+        if (result.Reason == ResultReason.RecognizedSpeech) return (result.Text, result.DetectedLanguage);
 
         throw new InvalidOperationException($"Speech recognition failed: {result.Reason}");
     }

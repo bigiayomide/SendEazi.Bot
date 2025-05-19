@@ -1,5 +1,4 @@
 using Bot.Core.Providers;
-using Bot.Core.StateMachine;
 using Bot.Core.StateMachine.Consumers.Payments;
 using Bot.Infrastructure.Data;
 using Bot.Shared;
@@ -104,13 +103,13 @@ public class TransferCmdConsumerTests
         var dbName = "provider-fail";
 
         var provider = new Mock<IBankProvider>();
-        provider.Setup(p => p.InitiateDebitAsync(It.IsAny<string>(), It.IsAny<decimal>(), It.IsAny<string>(), It.IsAny<string>()))
-                .ThrowsAsync(new Exception("fail"));
+        provider.Setup(p =>
+                p.InitiateDebitAsync(It.IsAny<string>(), It.IsAny<decimal>(), It.IsAny<string>(), It.IsAny<string>()))
+            .ThrowsAsync(new Exception("fail"));
 
-        var harness = await TestContextHelper.BuildTestHarness<TransferCmdConsumer>(services =>
-        {
-            services.AddMockBankFactory(userId, provider.Object);
-        }, dbName);
+        var harness =
+            await TestContextHelper.BuildTestHarness<TransferCmdConsumer>(
+                services => { services.AddMockBankFactory(userId, provider.Object); }, dbName);
 
         var db = harness.Scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
         await db.SeedUserAsync(userId);
@@ -134,10 +133,8 @@ public class TransferCmdConsumerTests
         var userId = Guid.NewGuid();
         var reference = "txn:dupe";
 
-        var harness = await TestContextHelper.BuildTestHarness<TransferCmdConsumer>(services =>
-        {
-            services.AddMockBankFactory(userId, new Mock<IBankProvider>().Object);
-        }, "dupe-test");
+        var harness = await TestContextHelper.BuildTestHarness<TransferCmdConsumer>(
+            services => { services.AddMockBankFactory(userId, new Mock<IBankProvider>().Object); }, "dupe-test");
 
         var db = harness.Scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
         await db.SeedUserAsync(userId);

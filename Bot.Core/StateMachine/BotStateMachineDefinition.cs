@@ -1,6 +1,5 @@
 // Bot.Core/Orchestrators/BotStateMachineDefinition.cs
 
-using Bot.Infrastructure.Data;
 using Bot.Shared.Models;
 using MassTransit;
 
