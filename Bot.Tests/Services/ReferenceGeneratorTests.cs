@@ -19,9 +19,9 @@ public class ReferenceGeneratorTests
         var reference = _generator.GenerateTransferRef(userId, account, bankCode);
 
         // Assert
-        reference.Should().StartWith("txn:");
-        reference.Length.Should().Be(16); // txn: + 12 chars
-        reference.Should().MatchRegex("^txn:[a-z0-9]{12}$");
+        reference.Should().StartWith($"txn:{userId}:");
+        reference.Length.Should().Be($"txn:{userId}:".Length + 12);
+        reference.Should().MatchRegex($"^txn:{userId}:[a-z0-9]{12}$");
     }
 
     [Fact]
@@ -29,8 +29,8 @@ public class ReferenceGeneratorTests
     {
         var reference = _generator.GenerateTransferRef(Guid.Empty, "", "");
 
-        reference.Should().StartWith("txn:");
-        reference.Should().HaveLength(16);
+        reference.Should().StartWith($"txn:{Guid.Empty}:");
+        reference.Length.Should().Be($"txn:{Guid.Empty}:".Length + 12);
     }
 
     [Fact]

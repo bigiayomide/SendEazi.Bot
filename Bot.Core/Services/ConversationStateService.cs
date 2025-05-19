@@ -9,6 +9,7 @@ namespace Bot.Core.Services;
 public interface IConversationStateService
 {
     Task<ConversationSession> GetOrCreateSessionAsync(string phoneNumber);
+    Task<ConversationSession?> GetSessionByUserAsync(Guid userId);
     Task UpdateLastMessageAsync(Guid sessionId, string message);
     Task SetUserAsync(Guid sessionId, Guid userId);
     Task SetStateAsync(Guid sessionId, string state);
@@ -39,6 +40,8 @@ public class ConversationStateService(
 {
     private readonly ConversationStateOptions _opts = opts.Value;
     private readonly IDatabase _redis = redis.GetDatabase();
+
+    private string UserIndexKey(Guid userId) => $"{_opts.RedisKeyPrefix}user:{userId}";
 
     public async Task<ConversationSession> GetOrCreateSessionAsync(string phoneNumber)
     {
@@ -87,10 +90,24 @@ public class ConversationStateService(
         await TouchAsync(sessionId);
     }
 
+    public async Task<ConversationSession?> GetSessionByUserAsync(Guid userId)
+    {
+        var sessionIdStr = await _redis.StringGetAsync(UserIndexKey(userId));
+        if (sessionIdStr.IsNullOrEmpty)
+            return null;
+
+        var sid = Guid.Parse(sessionIdStr!);
+        var hash = await _redis.HashGetAllAsync(SessionKey(sid));
+        return hash.Length == 0 ? null : Map(hash);
+    }
+
     public async Task SetUserAsync(Guid sessionId, Guid userId)
     {
         var key = SessionKey(sessionId);
-        await _redis.HashSetAsync(key, nameof(ConversationSession.UserId), userId.ToString());
+        var tran = _redis.CreateTransaction();
+        tran.HashSetAsync(key, nameof(ConversationSession.UserId), userId.ToString());
+        tran.StringSetAsync(UserIndexKey(userId), sessionId.ToString(), _opts.SessionTtl);
+        await tran.ExecuteAsync();
         await TouchAsync(sessionId);
     }
 
@@ -140,5 +157,9 @@ public class ConversationStateService(
         var phone = await _redis.HashGetAsync(key, nameof(ConversationSession.PhoneNumber));
         if (!phone.IsNullOrEmpty)
             await _redis.KeyExpireAsync(IndexKey(phone!), _opts.SessionTtl);
+
+        var user = await _redis.HashGetAsync(key, nameof(ConversationSession.UserId));
+        if (!user.IsNullOrEmpty && Guid.TryParse(user!, out var uid))
+            await _redis.KeyExpireAsync(UserIndexKey(uid), _opts.SessionTtl);
     }
 }

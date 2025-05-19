@@ -12,7 +12,7 @@ public class WebhookToEventMapperTests
         var guid = Guid.NewGuid();
         var json = $$"""
         {
-            "transaction_ref": "txn:{{guid}}",
+            "transaction_ref": "txn:{{guid}}:abcdef123456",
             "transaction_id": "abc123"
         }
         """;
@@ -21,7 +21,7 @@ public class WebhookToEventMapperTests
         var evt = WebhookToEventMapper.MapTransferSuccess(doc.RootElement, "Mono");
 
         evt.CorrelationId.Should().Be(guid);
-        evt.Reference.Should().Be($"txn:{guid}");
+        evt.Reference.Should().Be($"txn:{guid}:abcdef123456");
     }
 
     [Fact]
@@ -30,7 +30,7 @@ public class WebhookToEventMapperTests
         var guid = Guid.NewGuid();
         var json = $$"""
                      {
-            "transaction_ref": "txn:{{guid}}"
+            "transaction_ref": "txn:{{guid}}:deadbeefdead"
         }
         """;
 
@@ -38,7 +38,7 @@ public class WebhookToEventMapperTests
         var evt = WebhookToEventMapper.MapTransferFailed(doc.RootElement);
 
         evt.CorrelationId.Should().Be(guid);
-        evt.Reference.Should().Be($"txn:{guid}");
+        evt.Reference.Should().Be($"txn:{guid}:deadbeefdead");
         evt.Reason.Should().Be("No reason provided");
     }
 
@@ -48,7 +48,7 @@ public class WebhookToEventMapperTests
         var guid = Guid.NewGuid();
         var json = $$"""
         {
-            "transaction_ref": "txn:{{guid}}",
+            "transaction_ref": "txn:{{guid}}:abcdefabcdef",
             "failure_reason": "Insufficient funds"
         }
         """;
@@ -113,7 +113,7 @@ public class WebhookToEventMapperTests
         var guid = Guid.NewGuid();
         var result = typeof(WebhookToEventMapper)
             .GetMethod("GetUserId", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static)!
-            .Invoke(null, [$"txn:{guid}"]);
+            .Invoke(null, [$"txn:{guid}:123abc"]);
 
         result.Should().Be(guid);
     }
