@@ -3,6 +3,7 @@ using Bot.Core.StateMachine;
 using Bot.Shared;
 using Bot.Shared.DTOs;
 using Bot.Shared.Models;
+using Bot.Shared.Enums;
 using MassTransit;
 using MassTransit.Testing;
 using Microsoft.Extensions.DependencyInjection;
@@ -32,6 +33,14 @@ public class BotStateMachineWebhookTests : IAsyncLifetime
         _harness = _provider.GetRequiredService<ITestHarness>();
         _sagaHarness = _provider.GetRequiredService<ISagaStateMachineTestHarness<BotStateMachine, BotState>>();
 
+        _stateServiceMock
+            .Setup(x => x.SetStateAsync(It.IsAny<Guid>(), It.IsAny<string>()))
+            .Returns(Task.CompletedTask);
+
+        _stateServiceMock
+            .Setup(x => x.SetUserAsync(It.IsAny<Guid>(), It.IsAny<Guid>()))
+            .Returns(Task.CompletedTask);
+
         await _harness.Start();
         
     }
@@ -46,13 +55,16 @@ public class BotStateMachineWebhookTests : IAsyncLifetime
     public async Task WBK_01_Should_Trigger_PreviewCmd_On_TransferCompleted()
     {
         var id = NewId.NextGuid();
+        await _harness.Bus.Publish(new UserIntentDetected(id, IntentType.Greeting));
+        await _harness.InactivityTask;
+
         await _harness.Bus.Publish(new TransferCompleted(id, "REF-123"));
 
         var preview = _harness.Published
             .Select<PreviewCmd>()
             .FirstOrDefault(x => x.Context.Message.CorrelationId == id);
 
-        Assert.NotNull(preview); // Fails
+        Assert.NotNull(preview);
     }
 
 
@@ -60,13 +72,16 @@ public class BotStateMachineWebhookTests : IAsyncLifetime
     public async Task WBK_02_Should_Send_Text_On_TransferFailed()
     {
         var id = NewId.NextGuid();
+        await _harness.Bus.Publish(new UserIntentDetected(id, IntentType.Greeting));
+        await _harness.InactivityTask;
+
         await _harness.Bus.Publish(new TransferFailed(id, "Insufficient funds", "REF-456"));
 
         var nudge = _harness.Published
             .Select<NudgeCmd>()
             .FirstOrDefault(x => x.Context.Message.CorrelationId == id);
 
-        Assert.NotNull(nudge); // Fails
+        Assert.NotNull(nudge);
     }
 
 
@@ -74,6 +89,9 @@ public class BotStateMachineWebhookTests : IAsyncLifetime
     public async Task WBK_03_Should_Not_Republish_On_Duplicate_TransferCompleted()
     {
         var id = NewId.NextGuid();
+        await _harness.Bus.Publish(new UserIntentDetected(id, IntentType.Greeting));
+        await _harness.InactivityTask;
+
         await _harness.Bus.Publish(new TransferCompleted(id, "REF-789"));
         await _harness.Bus.Publish(new TransferCompleted(id, "REF-789")); // duplicate
 
@@ -81,7 +99,7 @@ public class BotStateMachineWebhookTests : IAsyncLifetime
             .Select<PreviewCmd>()
             .Count(x => x.Context.Message.CorrelationId == id);
 
-        Assert.Equal(1, count); // but we get 0
+        Assert.Equal(1, count);
     }
 
 }
