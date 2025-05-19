@@ -23,7 +23,7 @@ public interface ISpeechSynthesizerFactory
     ISpeechSynthesizer Create(SpeechConfig config);
 }
 
-public class SpeechSynthesizerWrapper(SpeechSynthesizer synthesizer) : ISpeechSynthesizer
+public class SpeechSynthesizerWrapper(ISpeechSynthesizer synthesizer) : ISpeechSynthesizer
 {
     public async Task<SynthesisResult> SpeakTextAsync(string text)
     {
@@ -34,7 +34,7 @@ public class SpeechSynthesizerWrapper(SpeechSynthesizer synthesizer) : ISpeechSy
     public async Task<IReadOnlyList<VoiceInfo>> GetVoicesAsync()
     {
         var result = await synthesizer.GetVoicesAsync();
-        return result.Voices;
+        return result;
     }
 
     public ValueTask DisposeAsync() => synthesizer.DisposeAsync();
@@ -42,8 +42,36 @@ public class SpeechSynthesizerWrapper(SpeechSynthesizer synthesizer) : ISpeechSy
 
 public class DefaultSpeechSynthesizerFactory : ISpeechSynthesizerFactory
 {
+    private class MsSpeechSynthesizerWrapper : ISpeechSynthesizer
+    {
+        private readonly SpeechSynthesizer _synthesizer;
+
+        public MsSpeechSynthesizerWrapper(SpeechSynthesizer synthesizer)
+        {
+            _synthesizer = synthesizer;
+        }
+
+        public async Task<SynthesisResult> SpeakTextAsync(string text)
+        {
+            var result = await _synthesizer.SpeakTextAsync(text);
+            return new SynthesisResult(result.Reason, result.AudioData);
+        }
+
+        public async Task<IReadOnlyList<VoiceInfo>> GetVoicesAsync()
+        {
+            var result = await _synthesizer.GetVoicesAsync();
+            return result.Voices;
+        }
+
+        public ValueTask DisposeAsync()
+        {
+             _synthesizer.Dispose();
+             return ValueTask.CompletedTask;
+        }
+    }
+
     public ISpeechSynthesizer Create(SpeechConfig config)
-        => new SpeechSynthesizerWrapper(new SpeechSynthesizer(config, null));
+        => new SpeechSynthesizerWrapper(new MsSpeechSynthesizerWrapper(new SpeechSynthesizer(config, null)));
 }
 
 /// <summary>
@@ -97,14 +125,14 @@ public class TextToSpeechService : ITextToSpeechService
         _speechConfig = SpeechConfig.FromSubscription(options.Value.SubscriptionKey, options.Value.Region);
         _factory = factory ?? new DefaultSpeechSynthesizerFactory();
 
-        _voiceSelector = voiceSelector ?? CreateDefaultVoiceSelector(cache);
+        _voiceSelector = voiceSelector ?? Task.Run(() => CreateDefaultVoiceSelector(cache)).GetAwaiter().GetResult();
     }
 
-    private Func<string, string> CreateDefaultVoiceSelector(IMemoryCache cache)
+    private async Task<Func<string, string>> CreateDefaultVoiceSelector(IMemoryCache cache)
     {
         if (!cache.TryGetValue("voices_list", out IReadOnlyList<VoiceInfo>? voices))
         {
-            using var synth = _factory.Create(_speechConfig);
+            await using var synth = _factory.Create(_speechConfig);
             voices = synth.GetVoicesAsync().GetAwaiter().GetResult();
             cache.Set("voices_list", voices, TimeSpan.FromDays(1));
         }

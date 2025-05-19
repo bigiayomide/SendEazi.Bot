@@ -1,7 +1,9 @@
 using Bot.Core.Services;
 using FluentAssertions;
 using Microsoft.CognitiveServices.Speech;
+using Microsoft.CognitiveServices.Speech.Audio;
 using Moq;
+using RecognitionResult = Bot.Core.Services.RecognitionResult;
 
 namespace Bot.Tests.Services;
 

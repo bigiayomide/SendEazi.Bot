@@ -3,8 +3,10 @@ using System.Net.Http;
 using Bot.Core.Services;
 using Bot.Core.StateMachine.Consumers.UX;
 using Bot.Infrastructure.Data;
+using Bot.Shared;
 using Bot.Shared.DTOs;
 using Bot.Shared.Enums;
+using Bot.Shared.Models;
 using Bot.Tests.TestUtilities;
 using FluentAssertions;
 using MassTransit.Testing;
@@ -21,7 +23,7 @@ public class UxConsumersTests
         var userId = Guid.NewGuid();
         var wa = new Mock<IWhatsAppService>();
         var replySvc = new Mock<IQuickReplyService>();
-        replySvc.Setup(r => r.GetQuickRepliesAsync(userId)).ReturnsAsync(["A", "B"]);
+        replySvc.Setup(r => r.GetQuickRepliesAsync(userId, 5)).ReturnsAsync(["A", "B"]);
         var userSvc = new Mock<IUserService>();
         userSvc.Setup(u => u.GetByIdAsync(userId)).ReturnsAsync(new User { Id = userId, PhoneNumber = "234" });
 
@@ -32,7 +34,7 @@ public class UxConsumersTests
             services.AddSingleton(userSvc.Object);
         });
 
-        await harness.Bus.Publish(new QuickReplyCmd(userId, "tmpl"));
+        await harness.Bus.Publish(new QuickReplyCmd(userId, "tmpl", new []{"Hello"}));
 
         wa.Verify(w => w.SendQuickReplyAsync("234", "Your top payees", It.IsAny<string>(), It.IsAny<string[]>()), Times.Once);
         (await harness.Published.Any<QuickReplySent>()).Should().BeTrue();

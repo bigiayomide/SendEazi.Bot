@@ -29,7 +29,11 @@ public class SpeechRecognizerWrapper(SpeechRecognizer recognizer) : ISpeechRecog
         return new RecognitionResult(result.Reason, result.Text, lang);
     }
 
-    public ValueTask DisposeAsync() => recognizer.DisposeAsync();
+    public ValueTask DisposeAsync()
+    {
+        recognizer.Dispose();
+        return ValueTask.CompletedTask;
+    }
 }
 
 public class DefaultSpeechRecognizerFactory : ISpeechRecognizerFactory

@@ -1,8 +1,12 @@
 using Bot.Core.Services;
 using Bot.Core.StateMachine;
 using Bot.Infrastructure.Data;
+using Bot.Shared;
 using Bot.Shared.DTOs;
 using Bot.Shared.Enums;
+using Bot.Shared.Models;
+using Bot.Tests.TestUtilities;
+using MassTransit;
 using MassTransit.Testing;
 using Microsoft.Extensions.DependencyInjection;
 using Moq;
