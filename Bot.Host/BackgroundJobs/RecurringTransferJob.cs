@@ -13,8 +13,14 @@ public class RecurringTransferJob(
     {
         log.LogInformation("RecurringTransferJob started at {Time}", context.FireTimeUtc);
 
-        await recurringService.ProcessDueTransfersAsync();
-
-        log.LogInformation("RecurringTransferJob completed at {Time}", DateTime.UtcNow);
+        try
+        {
+            await recurringService.ProcessDueTransfersAsync();
+            log.LogInformation("RecurringTransferJob completed at {Time}", DateTime.UtcNow);
+        }
+        catch (Exception ex)
+        {
+            log.LogError(ex, "RecurringTransferJob failed.");
+        }
     }
 }
