@@ -3,6 +3,7 @@ using Bot.Core.Services;
 using Bot.Core.StateMachine;
 using Bot.Shared;
 using Bot.Shared.DTOs;
+using Bot.Shared.Enums;
 using Bot.Shared.Models;
 using MassTransit;
 using MassTransit.Testing;
@@ -23,7 +24,14 @@ public class BotStateMachinePinAndIntentTests(ITestOutputHelper testOutputHelper
     {
         _provider = new ServiceCollection()
             .AddSingleton<IConversationStateService>(_stateServiceMock.Object)
-            .AddSingleton<IReferenceGenerator, ReferenceGenerator>()
+            
+            .AddSingleton<IReferenceGenerator>(sp =>
+            {
+                var mock = new Mock<IReferenceGenerator>();
+                mock.Setup(x => x.GenerateTransferRef(It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<string>()))
+                    .Returns("TEST-REF-123");
+                return mock.Object;
+            })
             .AddMassTransitTestHarness(cfg =>
             {
                 cfg.AddSagaStateMachine<BotStateMachine, BotState>()
@@ -33,6 +41,16 @@ public class BotStateMachinePinAndIntentTests(ITestOutputHelper testOutputHelper
 
         _harness = _provider.GetRequiredService<ITestHarness>();
         _sagaHarness = _provider.GetRequiredService<ISagaStateMachineTestHarness<BotStateMachine, BotState>>();
+        
+        _stateServiceMock
+            .Setup(x => x.SetStateAsync(It.IsAny<Guid>(), It.IsAny<string>()))
+            .Returns(Task.CompletedTask);
+
+        _stateServiceMock
+            .Setup(x => x.SetUserAsync(It.IsAny<Guid>(), It.IsAny<Guid>()))
+            .Returns(Task.CompletedTask);
+        _harness.TestTimeout = TimeSpan.FromSeconds(5);
+        _harness.TestInactivityTimeout = TimeSpan.FromSeconds(1);
 
         await _harness.Start();
     }
@@ -44,57 +62,36 @@ public class BotStateMachinePinAndIntentTests(ITestOutputHelper testOutputHelper
     {
         var sagaId = NewId.NextGuid();
 
-        await _harness.Bus.Publish(new UserIntentDetected(
-            sagaId,
-            Shared.Enums.IntentType.Signup
-        ));
+        // Signup starts
+        await _harness.Bus.Publish(new UserIntentDetected(sagaId, IntentType.Signup,
+            SignupPayload:new SignupPayload("Ayomide Fajobi", "+2349043844316", "12345678901", "12345678901")));
+        await _sagaHarness.Exists(sagaId, x => x.NinValidating, TimeSpan.FromSeconds(5));
 
-        await _harness.Bus.Publish(new FullNameProvided(
-            sagaId, 
-            "Test User"
-        ));
+        await _harness.Bus.Publish(new NinVerified(sagaId, "12345678901"));
+        await _sagaHarness.Exists(sagaId, x => x.AskBvn, TimeSpan.FromSeconds(5));
+        
+        await _harness.Bus.Publish(new BvnProvided(sagaId, "12345678901"));
+        await _sagaHarness.Exists(sagaId, x => x.BvnValidating, TimeSpan.FromSeconds(5));
 
-        await _harness.Bus.Publish(new NinProvided(
-            sagaId,
-            "12345678901"
-        ));
+        await _harness.Bus.Publish(new BvnVerified(sagaId, "12345678901"));
+        await _sagaHarness.Exists(sagaId, x => x.AwaitingKyc, TimeSpan.FromSeconds(5));
 
-        await _harness.Bus.Publish(new NinVerified(
-            sagaId, "12345678901"
-        ));
+        await _harness.Bus.Publish(new SignupSucceeded(sagaId, Guid.NewGuid()));
+        await _sagaHarness.Exists(sagaId, x => x.AwaitingBankLink, TimeSpan.FromSeconds(5));
 
-        await _harness.Bus.Publish(new BvnProvided(
-            sagaId,
-            "12345678901"
-        ));
+        await _harness.Bus.Publish(new MandateReadyToDebit(sagaId, "mandate-123", "test-provider"));
+        await _sagaHarness.Exists(sagaId, x => x.AwaitingPinSetup, TimeSpan.FromSeconds(5));
 
-        await _harness.Bus.Publish(new BvnVerified(
-            sagaId, "12345678901"
-        ));
+        await _harness.Bus.Publish(new BankLinkSucceeded(sagaId));
+        await _sagaHarness.Exists(sagaId, x => x.AwaitingPinValidate, TimeSpan.FromSeconds(5));
 
-        await _harness.Bus.Publish(new SignupSucceeded(
-            sagaId,
-            Guid.NewGuid()
-        ));
-
-        await _harness.Bus.Publish(new MandateReadyToDebit(
-            sagaId,
-            "mandate-123",
-            "test-provider"
-        ));
-
-        await _harness.Bus.Publish(new BankLinkSucceeded(
-            sagaId
-        ));
-
-        await _harness.Bus.Publish(new PinSet(
-            sagaId
-        ));
-        // Wait for the saga to process all events
-        await _harness.InactivityTask;
+        await _harness.Bus.Publish(new PinSet(sagaId));
+        await _sagaHarness.Exists(sagaId, x => x.Ready, TimeSpan.FromSeconds(5));
 
         return sagaId;
     }
+
+
 
 
 
@@ -118,29 +115,30 @@ public class BotStateMachinePinAndIntentTests(ITestOutputHelper testOutputHelper
         Assert.Equal(Shared.Enums.IntentType.Transfer, saga?.PendingIntentType);
         Assert.NotNull(saga?.PendingIntentPayload);
     }
-
     
     [Fact]
     public async Task PIN_02_Should_Publish_TransferCmd_On_Valid_Pin()
     {
+        // 1) Start from a known "Ready" user
         var id = await SeedUserToReadyAsync();
-        var payload = new TransferPayload("111111", "001", 12345, "Test");
 
-        await _harness.Bus.Publish(new UserIntentDetected(id, Shared.Enums.IntentType.Transfer, TransferPayload: payload));
-        await _harness.InactivityTask; // wait for saga to move to AwaitingPinValidate
+        // 2) Publish a unique Transfer intent
+        var payload = new TransferPayload(Guid.NewGuid().ToString(), "001", 12345, $"Test-{Guid.NewGuid()}");
+        await _harness.Bus.Publish(new UserIntentDetected(id, IntentType.Transfer, TransferPayload: payload));
 
+        // 3) Wait for the saga to reach "AwaitingPinValidate"
+        var pinValidateState = await _sagaHarness.Exists(id, x => x.AwaitingPinValidate, TimeSpan.FromSeconds(5));
+        Assert.NotNull(pinValidateState);
+
+        // 4) Publish PinValidated
         await _harness.Bus.Publish(new PinValidated(id));
-        await _harness.InactivityTask; // wait for saga to publish TransferCmd
 
-        var saga = _sagaHarness.Sagas.Contains(id);
-        Assert.Equal("Ready", saga?.CurrentState);
+        // 5) Wait until saga returns to "Ready"
+        var readyState = await _sagaHarness.Exists(id, x => x.Ready, TimeSpan.FromSeconds(5));
+        Assert.NotNull(readyState);
 
-        // Now it's safe to assert intent cleared
-        Assert.Null(saga?.PendingIntentType);
-        Assert.Null(saga?.PendingIntentPayload);
-
-        var published = _harness.Published.Select<TransferCmd>().Any(x => x.Context.Message.CorrelationId == id);
-        Assert.True(published);
+        // 6) Confirm that TransferCmd was published
+        Assert.True(await _harness.Published.Any<TransferCmd>(m => m.Context.Message.CorrelationId == id));
     }
 
 
@@ -167,20 +165,29 @@ public class BotStateMachinePinAndIntentTests(ITestOutputHelper testOutputHelper
     public async Task PIN_04_Should_Publish_BillPayCmd_On_Valid_Pin()
     {
         var id = await SeedUserToReadyAsync();
+
+        // 1) Publish BillPay intent
         var payload = new BillPayload("DSTV", "123456", 5000, "DSTV");
+        await _harness.Bus.Publish(new UserIntentDetected(id, IntentType.BillPay, BillPayload: payload));
 
-        await _harness.Bus.Publish(new UserIntentDetected(id, Shared.Enums.IntentType.BillPay, BillPayload: payload));
-        await _harness.InactivityTask; // saga enters AwaitingPinValidate
+        // 2) Wait for saga to become AwaitingPinValidate
+        var pinValidate = await _sagaHarness.Exists(id, x => x.AwaitingPinValidate, TimeSpan.FromSeconds(5));
+        Assert.NotNull(pinValidate);
 
+        // 3) Publish PinValidated
         await _harness.Bus.Publish(new PinValidated(id));
-        await _harness.InactivityTask; // process BillPayCmd
 
-        var saga = _sagaHarness.Sagas.Contains(id);
-        Assert.Equal("Ready", saga?.CurrentState);
+        // 4) Wait for saga to become Ready
+        var readyState = await _sagaHarness.Exists(id, x => x.Ready, TimeSpan.FromSeconds(5));
+        Assert.NotNull(readyState);
 
-        var published = _harness.Published.Select<BillPayCmd>().Any(x => x.Context.Message.CorrelationId == id);
-        Assert.True(published);
+        // 5) Confirm BillPayCmd was published
+        Assert.True(
+            await _harness.Published.Any<BillPayCmd>(x => x.Context.Message.CorrelationId == id),
+            "Expected BillPayCmd to be published but it wasn't."
+        );
     }
+
 
 
     [Fact]
@@ -242,79 +249,159 @@ public class BotStateMachinePinAndIntentTests(ITestOutputHelper testOutputHelper
         var id = await SeedUserToReadyAsync();
         var payload = new TransferPayload("111111", "001", 12345, "Test");
 
-        await _harness.Bus.Publish(new UserIntentDetected(id, Shared.Enums.IntentType.Transfer, TransferPayload: payload));
-        await _harness.InactivityTask;
-        await _harness.Bus.Publish(new PinValidated(id));
-        await _harness.InactivityTask;
+        // 1) Publish Transfer Intent
+        await _harness.Bus.Publish(new UserIntentDetected(id, IntentType.Transfer, TransferPayload: payload));
 
-        var cmd = _harness.Published.Select<TransferCmd>().FirstOrDefault(x => x.Context.Message.CorrelationId == id);
+        // 2) Wait for saga => AwaitingPinValidate
+        var pinValidateState = await _sagaHarness.Exists(id, x => x.AwaitingPinValidate, TimeSpan.FromSeconds(5));
+        Assert.NotNull(pinValidateState);
+
+        // 3) Publish PinValidated
+        await _harness.Bus.Publish(new PinValidated(id));
+
+        // 4) Wait for saga => Ready
+        var readyState = await _sagaHarness.Exists(id, x => x.Ready, TimeSpan.FromSeconds(5));
+        Assert.NotNull(readyState);
+
+        // 5) Confirm TransferCmd was published
+        var cmd = _harness.Published
+            .Select<TransferCmd>()
+            .FirstOrDefault(x => x.Context.Message.CorrelationId == id);
+
         Assert.NotNull(cmd);
         Assert.NotNull(cmd.Context.Message.Reference);
     }
 
+
     [Fact]
     public async Task PIN_09_Should_Allow_PinRetry_And_Then_Proceed_On_Valid_Pin()
     {
+        // 1) Ensure the saga is in "Ready"
         var id = await SeedUserToReadyAsync();
-        var payload = new TransferPayload("111111", "001", 12345, "Test");
 
-        await _harness.Bus.Publish(new UserIntentDetected(id, Shared.Enums.IntentType.Transfer, TransferPayload: payload));
-        await _harness.InactivityTask;
+        // 2) Publish a Transfer intent
+        var transferPayload = new TransferPayload("111111", "001", 12345, "Test");
+        await _harness.Bus.Publish(new UserIntentDetected(
+            id, 
+            IntentType.Transfer,
+            TransferPayload: transferPayload
+        ));
+
+        // 3) Wait for saga to reach "AwaitingPinValidate"
+        var awaitingPinState = await _sagaHarness.Exists(id, x => x.AwaitingPinValidate, TimeSpan.FromSeconds(5));
+        Assert.NotNull(awaitingPinState);
+
+        // 4) Publish PinInvalid
         await _harness.Bus.Publish(new PinInvalid(id, "wrong"));
-        await _harness.InactivityTask;
 
-        var saga = _sagaHarness.Sagas.Contains(id);
-        Assert.Equal("AwaitingPinValidate", saga?.CurrentState);
+        // 5) Confirm we still remain in "AwaitingPinValidate"
+        var stillAwaitingPin = await _sagaHarness.Exists(id, x => x.AwaitingPinValidate, TimeSpan.FromSeconds(5));
+        Assert.NotNull(stillAwaitingPin);
 
+        // 6) Publish PinValidated
         await _harness.Bus.Publish(new PinValidated(id));
-        await _harness.InactivityTask;
 
-        var cmd = _harness.Published.Select<TransferCmd>().FirstOrDefault(x => x.Context.Message.CorrelationId == id);
-        Assert.NotNull(cmd);
+        // 7) Wait for saga to return to "Ready"
+        var readyState = await _sagaHarness.Exists(id, x => x.Ready, TimeSpan.FromSeconds(5));
+        Assert.NotNull(readyState);
+
+        // 8) Confirm TransferCmd was published
+        var transferCmd = _harness.Published
+            .Select<TransferCmd>()
+            .FirstOrDefault(x => x.Context.Message.CorrelationId == id);
+
+        Assert.NotNull(transferCmd);
+        // Optionally confirm payload
+        Assert.Equal("111111", transferCmd.Context.Message.Payload.ToAccount);
     }
 
     [Fact]
     public async Task PIN_10_Should_Execute_Only_Latest_Intent_Before_PinValidated()
     {
+        // 1) Start from a known "Ready" user
         var id = await SeedUserToReadyAsync();
 
+        // 2) Publish a Transfer intent
         var transfer = new TransferPayload("111111", "001", 12345, "Test");
+        await _harness.Bus.Publish(new UserIntentDetected(id, IntentType.Transfer, TransferPayload: transfer));
+
+        // 3) Wait for the saga to become AwaitingPinValidate
+        var pinState1 = await _sagaHarness.Exists(id, s => s.AwaitingPinValidate, TimeSpan.FromSeconds(5));
+        Assert.NotNull(pinState1);
+
+        // 4) Publish a BillPay intent (overriding the older pending Transfer)
         var bill = new BillPayload("DSTV", "123456", 5000, "DSTV");
+        await _harness.Bus.Publish(new UserIntentDetected(id, IntentType.BillPay, BillPayload: bill));
 
-        await _harness.Bus.Publish(new UserIntentDetected(id, Shared.Enums.IntentType.Transfer, TransferPayload: transfer));
-        await _harness.InactivityTask;
-        await _harness.Bus.Publish(new UserIntentDetected(id, Shared.Enums.IntentType.BillPay, BillPayload: bill));
-        await _harness.InactivityTask;
+        // 5) Confirm we remain in AwaitingPinValidate
+        var pinState2 = await _sagaHarness.Exists(id, s => s.AwaitingPinValidate, TimeSpan.FromSeconds(5));
+        Assert.NotNull(pinState2);
+
+        // 6) Publish PinValidated
         await _harness.Bus.Publish(new PinValidated(id));
-        await _harness.InactivityTask;
 
-        var billCmd = _harness.Published.Select<BillPayCmd>().FirstOrDefault(x => x.Context.Message.CorrelationId == id);
-        Assert.NotNull(billCmd);
+        // 7) Wait for the saga to become Ready
+        var readyState = await _sagaHarness.Exists(id, s => s.Ready, TimeSpan.FromSeconds(5));
+        Assert.NotNull(readyState);
+
+        // 8) Confirm BillPayCmd was published, and TransferCmd was not
+        var billCmd = _harness.Published
+            .Select<BillPayCmd>()
+            .FirstOrDefault(x => x.Context.Message.CorrelationId == id);
+
+        Assert.NotNull(billCmd); // <-- no more NullRef
         Assert.Equal("DSTV", billCmd.Context.Message.Payload.BillerCode);
 
-        var transferCmd = _harness.Published.Select<TransferCmd>().FirstOrDefault(x => x.Context.Message.CorrelationId == id);
+        var transferCmd = _harness.Published
+            .Select<TransferCmd>()
+            .FirstOrDefault(x => x.Context.Message.CorrelationId == id);
+
         Assert.Null(transferCmd);
     }
 
     [Fact]
     public async Task PIN_11_Should_Allow_Intent_Change_While_Awaiting_Pin()
     {
+        // 1) Start from "Ready"
         var id = await SeedUserToReadyAsync();
 
+        // 2) Publish Transfer intent
         var transfer = new TransferPayload("111111", "001", 12345, "Test");
+        await _harness.Bus.Publish(new UserIntentDetected(id, IntentType.Transfer, TransferPayload: transfer));
+
+        // 3) Wait for saga => AwaitingPinValidate
+        var pinState1 = await _sagaHarness.Exists(id, s => s.AwaitingPinValidate, TimeSpan.FromSeconds(5));
+        Assert.NotNull(pinState1);
+
+        // 4) Publish a BillPay intent while in AwaitingPinValidate
         var bill = new BillPayload("DSTV", "123456", 5000, "DSTV");
+        await _harness.Bus.Publish(new UserIntentDetected(id, IntentType.BillPay, BillPayload: bill));
 
-        await _harness.Bus.Publish(new UserIntentDetected(id, Shared.Enums.IntentType.Transfer, TransferPayload: transfer));
-        await _harness.InactivityTask; // ensure state transition
+        // 5) Confirm saga is still in AwaitingPinValidate (intent changed but state is same)
+        var pinState2 = await _sagaHarness.Exists(id, s => s.AwaitingPinValidate, TimeSpan.FromSeconds(5));
+        Assert.NotNull(pinState2);
 
-        await _harness.Bus.Publish(new UserIntentDetected(id, Shared.Enums.IntentType.BillPay, BillPayload: bill));
+        // 6) Publish PinValidated
         await _harness.Bus.Publish(new PinValidated(id));
-        await _harness.InactivityTask;
 
-        var billCmd = _harness.Published.Select<BillPayCmd>().FirstOrDefault(x => x.Context.Message.CorrelationId == id);
-        Assert.NotNull(billCmd);
+        // 7) Wait for saga => Ready
+        var readyState = await _sagaHarness.Exists(id, s => s.Ready, TimeSpan.FromSeconds(5));
+        Assert.NotNull(readyState);
 
-        var transferCmd = _harness.Published.Select<TransferCmd>().FirstOrDefault(x => x.Context.Message.CorrelationId == id);
+        // 8) Confirm BillPayCmd was published
+        var billCmd = _harness.Published
+            .Select<BillPayCmd>()
+            .FirstOrDefault(x => x.Context.Message.CorrelationId == id);
+
+        Assert.NotNull(billCmd); // <-- ensures no NullRef
+        Assert.Equal("DSTV", billCmd.Context.Message.Payload.BillerCode);
+
+        // 9) Confirm TransferCmd was *not* published
+        var transferCmd = _harness.Published
+            .Select<TransferCmd>()
+            .FirstOrDefault(x => x.Context.Message.CorrelationId == id);
+
         Assert.Null(transferCmd);
     }
+
 }

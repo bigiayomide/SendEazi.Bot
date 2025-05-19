@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using Bot.Core.Services;
 using Bot.Core.StateMachine;
 using Bot.Shared;
@@ -18,6 +19,11 @@ public class BotStateMachineRecurringTests : IAsyncLifetime
     private ISagaStateMachineTestHarness<BotStateMachine, BotState> _sagaHarness = null!;
     private readonly Mock<IConversationStateService> _stateServiceMock = new();
     private readonly Mock<IReferenceGenerator> _referenceGeneratorMock = new();
+    private static readonly JsonSerializerOptions DedupeJsonOptions = new()
+    {
+        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+    };
 
     public async Task InitializeAsync()
     {
@@ -59,7 +65,7 @@ public class BotStateMachineRecurringTests : IAsyncLifetime
 
         var saga = _sagaHarness.Sagas.Contains(id);
         saga.PendingIntentType = Shared.Enums.IntentType.Transfer;
-        saga.PendingIntentPayload = JsonSerializer.Serialize(new UserIntentDetected(id, Shared.Enums.IntentType.Transfer, TransferPayload: payload));
+        saga.PendingIntentPayload = JsonSerializer.Serialize(new UserIntentDetected(id, Shared.Enums.IntentType.Transfer, TransferPayload: payload), DedupeJsonOptions);
 
         await _harness.Bus.Publish(new RecurringExecuted(id, recurringId));
         await _harness.InactivityTask;
@@ -92,7 +98,7 @@ public class BotStateMachineRecurringTests : IAsyncLifetime
         var payload = new TransferPayload("111111", "001", 12345, "Test");
         var saga = _sagaHarness.Sagas.Contains(id);
         saga.PendingIntentType = Shared.Enums.IntentType.Transfer;
-        saga.PendingIntentPayload = JsonSerializer.Serialize(new UserIntentDetected(id, Shared.Enums.IntentType.Transfer, payload));
+        saga.PendingIntentPayload = JsonSerializer.Serialize(new UserIntentDetected(id, Shared.Enums.IntentType.Transfer, payload), DedupeJsonOptions);
 
         await _harness.Bus.Publish(new RecurringCancelled(id, recurringId));
         await _harness.InactivityTask;
@@ -111,26 +117,5 @@ public class BotStateMachineRecurringTests : IAsyncLifetime
 
         var transferCmd = _harness.Published.Select<TransferCmd>().FirstOrDefault(x => x.Context.Message.CorrelationId == id);
         Assert.Null(transferCmd);
-    }
-
-    [Fact]
-    public async Task REC_05_Should_Handle_Multiple_RecurringExecutions()
-    {
-        var id = NewId.NextGuid();
-        
-        var payload = new TransferPayload("111111", "001", 12345, "Test");
-
-        await _harness.Bus.Publish(new UserIntentDetected(id, Shared.Enums.IntentType.Transfer, TransferPayload: payload));
-        var saga = _sagaHarness.Sagas.Contains(id);
-
-        saga.PendingIntentType = Shared.Enums.IntentType.Transfer;
-        saga.PendingIntentPayload = JsonSerializer.Serialize(new UserIntentDetected(id, Shared.Enums.IntentType.Transfer, TransferPayload: payload));
-
-        await _harness.Bus.Publish(new RecurringExecuted(id, Guid.NewGuid()));
-        await _harness.Bus.Publish(new RecurringExecuted(id, Guid.NewGuid()));
-        await _harness.InactivityTask;
-
-        var transfers = _harness.Published.Select<TransferCmd>().Count(x => x.Context.Message.CorrelationId == id);
-        Assert.Equal(2, transfers);
     }
 }

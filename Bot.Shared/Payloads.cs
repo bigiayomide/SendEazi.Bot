@@ -52,5 +52,10 @@ public enum NudgeType
     TimedOut,
     FloodProtection,
     Canceled,
-    Help
+    Help,
+    SignupFailed,
+    BankFailed,
+    KycFailed,
+    BillFailed,
+    RecurringFailed
 }

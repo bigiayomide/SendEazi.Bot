@@ -48,9 +48,13 @@ public class BotStateMachineWebhookTests : IAsyncLifetime
         var id = NewId.NextGuid();
         await _harness.Bus.Publish(new TransferCompleted(id, "REF-123"));
 
-        var preview = _harness.Published.Select<PreviewCmd>().FirstOrDefault(x => x.Context.Message.CorrelationId == id);
-        Assert.NotNull(preview);
+        var preview = _harness.Published
+            .Select<PreviewCmd>()
+            .FirstOrDefault(x => x.Context.Message.CorrelationId == id);
+
+        Assert.NotNull(preview); // Fails
     }
+
 
     [Fact]
     public async Task WBK_02_Should_Send_Text_On_TransferFailed()
@@ -58,9 +62,13 @@ public class BotStateMachineWebhookTests : IAsyncLifetime
         var id = NewId.NextGuid();
         await _harness.Bus.Publish(new TransferFailed(id, "Insufficient funds", "REF-456"));
 
-        var nudge = _harness.Published.Select<NudgeCmd>().FirstOrDefault(x => x.Context.Message.CorrelationId == id);
-        Assert.NotNull(nudge);
+        var nudge = _harness.Published
+            .Select<NudgeCmd>()
+            .FirstOrDefault(x => x.Context.Message.CorrelationId == id);
+
+        Assert.NotNull(nudge); // Fails
     }
+
 
     [Fact]
     public async Task WBK_03_Should_Not_Republish_On_Duplicate_TransferCompleted()
@@ -69,7 +77,11 @@ public class BotStateMachineWebhookTests : IAsyncLifetime
         await _harness.Bus.Publish(new TransferCompleted(id, "REF-789"));
         await _harness.Bus.Publish(new TransferCompleted(id, "REF-789")); // duplicate
 
-        var count = _harness.Published.Select<PreviewCmd>().Count(x => x.Context.Message.CorrelationId == id);
-        Assert.Equal(1, count); 
+        var count = _harness.Published
+            .Select<PreviewCmd>()
+            .Count(x => x.Context.Message.CorrelationId == id);
+
+        Assert.Equal(1, count); // but we get 0
     }
+
 }
