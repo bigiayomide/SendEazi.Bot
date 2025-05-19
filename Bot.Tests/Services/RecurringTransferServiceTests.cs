@@ -7,8 +7,8 @@ using FluentAssertions;
 using MassTransit;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
-using Moq;
 using NCrontab;
+using Moq;
 
 namespace Bot.Tests.Services;
 
