@@ -10,6 +10,42 @@ public interface ITextToSpeechService
     Task<Stream> SynthesizeAsync(string text, string localeCode);
 }
 
+public record SynthesisResult(ResultReason Reason, byte[] AudioData);
+
+public interface ISpeechSynthesizer : IAsyncDisposable
+{
+    Task<SynthesisResult> SpeakTextAsync(string text);
+    Task<IReadOnlyList<VoiceInfo>> GetVoicesAsync();
+}
+
+public interface ISpeechSynthesizerFactory
+{
+    ISpeechSynthesizer Create(SpeechConfig config);
+}
+
+public class SpeechSynthesizerWrapper(SpeechSynthesizer synthesizer) : ISpeechSynthesizer
+{
+    public async Task<SynthesisResult> SpeakTextAsync(string text)
+    {
+        var result = await synthesizer.SpeakTextAsync(text);
+        return new SynthesisResult(result.Reason, result.AudioData);
+    }
+
+    public async Task<IReadOnlyList<VoiceInfo>> GetVoicesAsync()
+    {
+        var result = await synthesizer.GetVoicesAsync();
+        return result.Voices;
+    }
+
+    public ValueTask DisposeAsync() => synthesizer.DisposeAsync();
+}
+
+public class DefaultSpeechSynthesizerFactory : ISpeechSynthesizerFactory
+{
+    public ISpeechSynthesizer Create(SpeechConfig config)
+        => new SpeechSynthesizerWrapper(new SpeechSynthesizer(config, null));
+}
+
 /// <summary>
 ///     Picks the best matching neural voice for a locale from the provided VoiceInfo list.
 /// </summary>
@@ -46,10 +82,12 @@ public class VoicePicker
 
 public class TextToSpeechService : ITextToSpeechService
 {
-    private readonly VoicePicker _picker;
     private readonly SpeechConfig _speechConfig;
+    private readonly ISpeechSynthesizerFactory _factory;
+    private readonly Func<string, string> _voiceSelector;
 
-    public TextToSpeechService(IMemoryCache cache, IOptions<TextToSpeechOptions> options)
+    public TextToSpeechService(IMemoryCache cache, IOptions<TextToSpeechOptions> options,
+        ISpeechSynthesizerFactory? factory = null, Func<string, string>? voiceSelector = null)
     {
         if (string.IsNullOrWhiteSpace(options.Value.SubscriptionKey))
             throw new ArgumentNullException(nameof(options.Value.SubscriptionKey));
@@ -57,18 +95,22 @@ public class TextToSpeechService : ITextToSpeechService
             throw new ArgumentNullException(nameof(options.Value.Region));
 
         _speechConfig = SpeechConfig.FromSubscription(options.Value.SubscriptionKey, options.Value.Region);
+        _factory = factory ?? new DefaultSpeechSynthesizerFactory();
 
-        // Load and cache the voices list on first use
+        _voiceSelector = voiceSelector ?? CreateDefaultVoiceSelector(cache);
+    }
+
+    private Func<string, string> CreateDefaultVoiceSelector(IMemoryCache cache)
+    {
         if (!cache.TryGetValue("voices_list", out IReadOnlyList<VoiceInfo>? voices))
         {
-            using var tempSynthesizer = new SpeechSynthesizer(_speechConfig, null);
-            var result = tempSynthesizer.GetVoicesAsync().GetAwaiter().GetResult(); // sync for startup
-            voices = result
-                .Voices; // SynthesisVoicesResult.Voices is List<VoiceInfo>
+            using var synth = _factory.Create(_speechConfig);
+            voices = synth.GetVoicesAsync().GetAwaiter().GetResult();
             cache.Set("voices_list", voices, TimeSpan.FromDays(1));
         }
 
-        _picker = new VoicePicker(voices);
+        var picker = new VoicePicker(voices);
+        return picker.PickVoice;
     }
 
     public async Task<Stream> SynthesizeAsync(string text, string localeCode)
@@ -79,16 +121,14 @@ public class TextToSpeechService : ITextToSpeechService
             throw new ArgumentNullException(nameof(localeCode));
 
         // Pick the best voice for this locale
-        var voiceName = _picker.PickVoice(localeCode);
+        var voiceName = _voiceSelector(localeCode);
 
         // Configure synthesizer
         _speechConfig.SpeechSynthesisVoiceName = voiceName;
 
         // Perform synthesis to an in-memory stream
-        using var synthesizer = new SpeechSynthesizer(_speechConfig, null);
-        var result =
-            await synthesizer
-                .SpeakTextAsync(text); // returns SpeechSynthesisResult
+        await using var synthesizer = _factory.Create(_speechConfig);
+        var result = await synthesizer.SpeakTextAsync(text);
         if (result.Reason != ResultReason.SynthesizingAudioCompleted)
             throw new InvalidOperationException($"TTS failed ({result.Reason}): {result}");
 

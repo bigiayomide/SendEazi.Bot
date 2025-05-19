@@ -70,10 +70,11 @@ public static class ServiceCollectionExtensions
             .AddScoped<IReferenceGenerator, ReferenceGenerator>()
             .AddScoped<IChatClientWrapper, ChatClientWrapper>()
             .AddMemoryCache()
-            .AddScoped<DocumentAnalysisClient>(sp =>
+            .AddScoped<IDocumentAnalysisClient>(sp =>
             {
                 var config = sp.GetRequiredService<IOptions<FormRecognizerOptions>>().Value;
-                return new DocumentAnalysisClient(new Uri(config.Endpoint), new AzureKeyCredential(config.ApiKey));
+                var client = new DocumentAnalysisClient(new Uri(config.Endpoint), new AzureKeyCredential(config.ApiKey));
+                return new DocumentAnalysisClientWrapper(client);
             })
             .AddStackExchangeRedisCache(options =>
             {

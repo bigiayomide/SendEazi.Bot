@@ -8,9 +8,40 @@ public interface ITranscriptionService
     Task<(string Text, string DetectedLanguage)> TranscribeAsync(Stream audioStream, string[] languageCodes);
 }
 
-public class TranscriptionService(string subscriptionKey, string region) : ITranscriptionService
+public record RecognitionResult(ResultReason Reason, string Text, string DetectedLanguage);
+
+public interface ISpeechRecognizer : IAsyncDisposable
+{
+    Task<RecognitionResult> RecognizeOnceAsync();
+}
+
+public interface ISpeechRecognizerFactory
+{
+    ISpeechRecognizer Create(SpeechConfig config, AutoDetectSourceLanguageConfig autoDetectConfig, AudioConfig audioConfig);
+}
+
+public class SpeechRecognizerWrapper(SpeechRecognizer recognizer) : ISpeechRecognizer
+{
+    public async Task<RecognitionResult> RecognizeOnceAsync()
+    {
+        var result = await recognizer.RecognizeOnceAsync();
+        var lang = result.Properties.GetProperty(PropertyId.SpeechServiceConnection_AutoDetectSourceLanguageResult);
+        return new RecognitionResult(result.Reason, result.Text, lang);
+    }
+
+    public ValueTask DisposeAsync() => recognizer.DisposeAsync();
+}
+
+public class DefaultSpeechRecognizerFactory : ISpeechRecognizerFactory
+{
+    public ISpeechRecognizer Create(SpeechConfig config, AutoDetectSourceLanguageConfig autoDetectConfig, AudioConfig audioConfig)
+        => new SpeechRecognizerWrapper(new SpeechRecognizer(config, autoDetectConfig, audioConfig));
+}
+
+public class TranscriptionService(string subscriptionKey, string region, ISpeechRecognizerFactory? factory = null) : ITranscriptionService
 {
     private readonly SpeechConfig _speechConfig = SpeechConfig.FromSubscription(subscriptionKey, region);
+    private readonly ISpeechRecognizerFactory _factory = factory ?? new DefaultSpeechRecognizerFactory();
 
     public async Task<(string Text, string DetectedLanguage)> TranscribeAsync(Stream audioStream,
         string[] languageCodes)
@@ -27,14 +58,12 @@ public class TranscriptionService(string subscriptionKey, string region) : ITran
         pushStream.Close();
 
         using var audioConfig = AudioConfig.FromStreamInput(pushStream);
-        using var recognizer = new SpeechRecognizer(_speechConfig, autoDetectConfig, audioConfig);
+        await using var recognizer = _factory.Create(_speechConfig, autoDetectConfig, audioConfig);
         var result = await recognizer.RecognizeOnceAsync();
 
         if (result.Reason == ResultReason.RecognizedSpeech)
         {
-            var detectedLang = result.Properties.GetProperty(
-                PropertyId.SpeechServiceConnection_AutoDetectSourceLanguageResult);
-            return (result.Text, detectedLang);
+            return (result.Text, result.DetectedLanguage);
         }
 
         throw new InvalidOperationException($"Speech recognition failed: {result.Reason}");
