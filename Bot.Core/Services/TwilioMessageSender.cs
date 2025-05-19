@@ -1,3 +1,4 @@
+using Twilio.Clients;
 using Twilio.Rest.Api.V2010.Account;
 using Twilio.Types;
 
@@ -10,11 +11,22 @@ public interface ITwilioMessageSender
 
 public class TwilioMessageSender : ITwilioMessageSender
 {
+    private readonly ITwilioRestClient _client;
+
+    public TwilioMessageSender(ITwilioRestClient client)
+    {
+        _client = client;
+    }
+
     public async Task<string> SendAsync(string from, string to, string body)
     {
-        var msg = await MessageResource.CreateAsync(body: body,
-            from: new PhoneNumber(from),
-            to: new PhoneNumber(to));
+        var options = new CreateMessageOptions(new PhoneNumber(to))
+        {
+            From = new PhoneNumber(from),
+            Body = body
+        };
+
+        var msg = await MessageResource.CreateAsync(options, _client);
         return msg.Sid;
     }
 }
