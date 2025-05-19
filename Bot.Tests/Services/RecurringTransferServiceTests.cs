@@ -7,6 +7,7 @@ using MassTransit;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Moq;
+using NCrontab;
 
 namespace Bot.Tests.Services;
 
@@ -174,5 +175,26 @@ public class RecurringTransferServiceTests
         var act = async () => await service.ProcessDueTransfersAsync();
 
         await act.Should().NotThrowAsync(); // handles it gracefully
+    }
+
+    [Fact]
+    public async Task ScheduleAsync_InvalidCron_Should_Throw()
+    {
+        var db = CreateDb("schedule-invalid");
+
+        var service = new RecurringTransferService(
+            db,
+            Mock.Of<ILogger<RecurringTransferService>>(),
+            new ReferenceGenerator(),
+            new Mock<IPublishEndpoint>().Object);
+
+        var payload = new RecurringPayload(
+            Guid.NewGuid(),
+            new TransferPayload("1234567890", "058", 50m, null),
+            "invalid cron");
+
+        var act = () => service.ScheduleAsync(Guid.NewGuid(), payload);
+
+        await act.Should().ThrowAsync<CrontabException>();
     }
 }
