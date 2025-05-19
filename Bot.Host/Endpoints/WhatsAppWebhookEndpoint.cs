@@ -49,7 +49,7 @@ public class WhatsAppWebhookEndpoint(
         if (!SignatureVerifier.MetaSecretVerifier(header, jsonBody,
                 cfg["WhatsApp:VerifyToken"]))
         {
-            await SendErrorsAsync(400, ct);
+            await SendErrorsAsync(401, ct);
             return;
         }
 
