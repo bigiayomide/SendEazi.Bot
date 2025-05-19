@@ -74,4 +74,28 @@ public class BillingServiceTests
             It.IsAny<Exception?>(),
             It.IsAny<Func<It.IsAnyType, Exception?, string>>()), Times.AtLeastOnce);
     }
+
+    [Fact]
+    public async Task SweepFeesAsync_Should_Log_When_No_Fees()
+    {
+        var db = CreateDb("no-fees");
+        db.FeeRecords.Add(new FeeRecord
+        {
+            Id = Guid.NewGuid(), TransactionId = Guid.NewGuid(), Amount = 5m,
+            CreatedAt = DateTime.UtcNow, Swept = true
+        });
+        await db.SaveChangesAsync();
+
+        var logger = new Mock<ILogger<BillingService>>();
+        var service = new BillingService(db, logger.Object);
+
+        await service.SweepFeesAsync();
+
+        logger.Verify(l => l.Log(
+            LogLevel.Information,
+            It.IsAny<EventId>(),
+            It.Is<It.IsAnyType>((o, t) => o.ToString()!.Contains("No fees to sweep")),
+            It.IsAny<Exception?>(),
+            It.IsAny<Func<It.IsAnyType, Exception?, string>>()), Times.Once);
+    }
 }
