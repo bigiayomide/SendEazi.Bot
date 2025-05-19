@@ -1,28 +1,31 @@
 using System.Net;
-using System.Net.Http;
 using System.Text.Json;
 using Bot.Core.Services;
 using Bot.Infrastructure.Data;
 using Bot.Shared.Enums;
+using Bot.Shared.Models;
+using Bot.Tests.TestUtilities;
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Moq;
-using Bot.Tests.TestUtilities;
 
 namespace Bot.Tests.Services;
 
 public class BillPayServiceTests
 {
-    private static ApplicationDbContext CreateDb(string name) =>
-        new(new DbContextOptionsBuilder<ApplicationDbContext>()
+    private static ApplicationDbContext CreateDb(string name)
+    {
+        return new ApplicationDbContext(new DbContextOptionsBuilder<ApplicationDbContext>()
             .UseInMemoryDatabase(name)
             .Options);
+    }
 
-    private static (BillPayService svc, MockHttpMessageHandler handler, Mock<ILogger<BillPayService>> logger) CreateService(
-        ApplicationDbContext db,
-        Func<HttpRequestMessage, HttpResponseMessage> handlerFunc)
+    private static (BillPayService svc, MockHttpMessageHandler handler, Mock<ILogger<BillPayService>> logger)
+        CreateService(
+            ApplicationDbContext db,
+            Func<HttpRequestMessage, HttpResponseMessage> handlerFunc)
     {
         var handler = new MockHttpMessageHandler(handlerFunc);
         var client = new HttpClient(handler);
@@ -103,7 +106,7 @@ public class BillPayServiceTests
     {
         var db = CreateDb("due-bills");
         var now = DateTime.UtcNow.AddHours(-1);
-        db.BillPayments.Add(new Bot.Shared.Models.BillPayment
+        db.BillPayments.Add(new BillPayment
         {
             Id = Guid.NewGuid(),
             UserId = Guid.NewGuid(),
@@ -113,7 +116,7 @@ public class BillPayServiceTests
             IsPaid = false,
             CreatedAt = DateTime.UtcNow.AddDays(-2)
         });
-        db.BillPayments.Add(new Bot.Shared.Models.BillPayment
+        db.BillPayments.Add(new BillPayment
         {
             Id = Guid.NewGuid(),
             UserId = Guid.NewGuid(),
@@ -123,7 +126,7 @@ public class BillPayServiceTests
             IsPaid = false,
             CreatedAt = DateTime.UtcNow.AddDays(-1)
         });
-        db.BillPayments.Add(new Bot.Shared.Models.BillPayment
+        db.BillPayments.Add(new BillPayment
         {
             Id = Guid.NewGuid(),
             UserId = Guid.NewGuid(),
@@ -148,4 +151,3 @@ public class BillPayServiceTests
         }
     }
 }
-

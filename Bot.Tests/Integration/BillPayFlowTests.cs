@@ -12,6 +12,7 @@ using MassTransit.Testing;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Moq;
+using Assert = Xunit.Assert;
 
 namespace Bot.Tests.Integration;
 

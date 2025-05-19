@@ -7,45 +7,6 @@ namespace Bot.Tests.Caching;
 
 public class RedisServiceTests
 {
-    private class RedisMock
-    {
-        public Mock<IConnectionMultiplexer> Connection { get; } = new();
-        public Mock<IDatabase> Database { get; } = new();
-        public Dictionary<string, RedisValue> Strings { get; } = new();
-        public Dictionary<string, TimeSpan?> Expirations { get; } = new();
-
-        public RedisMock()
-        {
-            Connection.Setup(c => c.GetDatabase(It.IsAny<int>(), It.IsAny<object?>()))
-                .Returns(Database.Object);
-
-            Database.Setup(d => d.StringSetAsync(It.IsAny<RedisKey>(), It.IsAny<RedisValue>(), It.IsAny<TimeSpan?>(), It.IsAny<When>(), It.IsAny<CommandFlags>()))
-                .Callback((RedisKey key, RedisValue val, TimeSpan? exp, When _, CommandFlags __) =>
-                {
-                    Strings[key] = val;
-                    if (exp != null)
-                        Expirations[key] = exp;
-                    else
-                        Expirations.Remove(key);
-                })
-                .ReturnsAsync(true);
-
-            Database.Setup(d => d.StringGetAsync(It.IsAny<RedisKey>(), It.IsAny<CommandFlags>()))
-                .Returns((RedisKey key, CommandFlags _) =>
-                {
-                    return Task.FromResult(Strings.TryGetValue(key, out var val) ? val : RedisValue.Null);
-                });
-
-            Database.Setup(d => d.KeyDeleteAsync(It.IsAny<RedisKey>(), It.IsAny<CommandFlags>()))
-                .Callback((RedisKey key, CommandFlags _) =>
-                {
-                    Strings.Remove(key);
-                    Expirations.Remove(key);
-                })
-                .ReturnsAsync(true);
-        }
-    }
-
     private static RedisService CreateService(RedisMock mock)
     {
         return new RedisService(mock.Connection.Object);
@@ -90,5 +51,45 @@ public class RedisServiceTests
 
         redis.Strings.ContainsKey("k").Should().BeFalse();
         redis.Expirations.ContainsKey("k").Should().BeFalse();
+    }
+
+    private class RedisMock
+    {
+        public RedisMock()
+        {
+            Connection.Setup(c => c.GetDatabase(It.IsAny<int>(), It.IsAny<object?>()))
+                .Returns(Database.Object);
+
+            Database.Setup(d => d.StringSetAsync(It.IsAny<RedisKey>(), It.IsAny<RedisValue>(), It.IsAny<TimeSpan?>(),
+                    It.IsAny<When>(), It.IsAny<CommandFlags>()))
+                .Callback((RedisKey key, RedisValue val, TimeSpan? exp, When _, CommandFlags __) =>
+                {
+                    Strings[key] = val;
+                    if (exp != null)
+                        Expirations[key] = exp;
+                    else
+                        Expirations.Remove(key);
+                })
+                .ReturnsAsync(true);
+
+            Database.Setup(d => d.StringGetAsync(It.IsAny<RedisKey>(), It.IsAny<CommandFlags>()))
+                .Returns((RedisKey key, CommandFlags _) =>
+                {
+                    return Task.FromResult(Strings.TryGetValue(key, out var val) ? val : RedisValue.Null);
+                });
+
+            Database.Setup(d => d.KeyDeleteAsync(It.IsAny<RedisKey>(), It.IsAny<CommandFlags>()))
+                .Callback((RedisKey key, CommandFlags _) =>
+                {
+                    Strings.Remove(key);
+                    Expirations.Remove(key);
+                })
+                .ReturnsAsync(true);
+        }
+
+        public Mock<IConnectionMultiplexer> Connection { get; } = new();
+        public Mock<IDatabase> Database { get; } = new();
+        public Dictionary<string, RedisValue> Strings { get; } = new();
+        public Dictionary<string, TimeSpan?> Expirations { get; } = new();
     }
 }

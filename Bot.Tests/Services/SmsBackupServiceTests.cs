@@ -2,6 +2,7 @@ using Bot.Core.Services;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Moq;
+using Assert = Xunit.Assert;
 
 namespace Bot.Tests.Services;
 

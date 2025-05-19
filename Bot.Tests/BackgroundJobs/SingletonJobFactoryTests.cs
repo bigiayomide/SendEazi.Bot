@@ -3,6 +3,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Moq;
 using Quartz;
 using Quartz.Spi;
+using Assert = Xunit.Assert;
 
 namespace Bot.Tests.BackgroundJobs;
 

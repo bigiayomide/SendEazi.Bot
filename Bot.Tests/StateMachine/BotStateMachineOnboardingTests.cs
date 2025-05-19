@@ -9,6 +9,7 @@ using MassTransit.Testing;
 using Microsoft.Extensions.DependencyInjection;
 using Moq;
 using Xunit.Abstractions;
+using Assert = Xunit.Assert;
 
 namespace Bot.Tests.StateMachine;
 

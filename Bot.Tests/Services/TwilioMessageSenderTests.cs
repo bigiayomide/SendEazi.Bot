@@ -2,6 +2,7 @@ using Bot.Core.Services;
 using Moq;
 using Twilio.Clients;
 using Twilio.Http;
+using Assert = Xunit.Assert;
 
 namespace Bot.Tests.Services;
 

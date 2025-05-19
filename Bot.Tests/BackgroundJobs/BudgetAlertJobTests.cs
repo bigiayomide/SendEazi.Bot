@@ -1,12 +1,12 @@
-using Bot.Host.BackgroundJobs;
+using Bot.Core.Models;
 using Bot.Core.Services;
-using Bot.Infrastructure.Data;
+using Bot.Host.BackgroundJobs;
 using Bot.Shared.Models;
 using Bot.Tests.TestUtilities;
 using Microsoft.Extensions.Logging;
 using Moq;
 using Quartz;
-using Xunit;
+using Assert = Xunit.Assert;
 
 namespace Bot.Tests.BackgroundJobs;
 
@@ -99,10 +99,10 @@ public class BudgetAlertJobTests
 
         var budgetSvc = new Mock<IBudgetService>();
         budgetSvc.Setup(s => s.GetTriggeredBudgetAlertsAsync(user1))
-                 .ThrowsAsync(new Exception("fail"));
+            .ThrowsAsync(new Exception("fail"));
         var alerts2 = new List<(BudgetGoal, decimal)> { (goal2, 1500m) };
         budgetSvc.Setup(s => s.GetTriggeredBudgetAlertsAsync(user2))
-                 .ReturnsAsync(alerts2);
+            .ReturnsAsync(alerts2);
 
         var sent = new List<(Guid, BudgetAlert)>();
         var notification = new Mock<INotificationService>();
@@ -121,11 +121,11 @@ public class BudgetAlertJobTests
         Assert.Single(sent);
         notification.Verify(n => n.SendBudgetAlertAsync(user2, It.IsAny<BudgetAlert>()), Times.Once);
         logger.Verify(l => l.Log(
-            LogLevel.Error,
-            It.IsAny<EventId>(),
-            It.IsAny<It.IsAnyType>(),
-            It.IsAny<Exception?>(),
-            It.IsAny<Func<It.IsAnyType, Exception?, string>>()),
+                LogLevel.Error,
+                It.IsAny<EventId>(),
+                It.IsAny<It.IsAnyType>(),
+                It.IsAny<Exception?>(),
+                It.IsAny<Func<It.IsAnyType, Exception?, string>>()),
             Times.AtLeastOnce);
     }
 }

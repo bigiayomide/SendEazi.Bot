@@ -7,6 +7,7 @@ using MassTransit;
 using MassTransit.Testing;
 using Microsoft.Extensions.DependencyInjection;
 using Moq;
+using Assert = Xunit.Assert;
 
 namespace Bot.Tests.StateMachine;
 

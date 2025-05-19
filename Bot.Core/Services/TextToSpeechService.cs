@@ -117,9 +117,9 @@ public class VoicePicker
 public class TextToSpeechService : ITextToSpeechService
 {
     private readonly ISpeechSynthesizerFactory _factory;
+    private readonly ILogger<TextToSpeechService> _logger;
     private readonly SpeechConfig _speechConfig;
     private readonly Func<string, string> _voiceSelector;
-    private readonly ILogger<TextToSpeechService> _logger;
 
     public TextToSpeechService(
         IMemoryCache cache,
@@ -135,7 +135,7 @@ public class TextToSpeechService : ITextToSpeechService
 
         _speechConfig = SpeechConfig.FromSubscription(options.Value.SubscriptionKey, options.Value.Region);
         _factory = factory ?? new DefaultSpeechSynthesizerFactory();
-        
+
         _voiceSelector = voiceSelector ?? CreateDefaultVoiceSelector(cache).GetAwaiter().GetResult();
         _logger = logger;
     }
