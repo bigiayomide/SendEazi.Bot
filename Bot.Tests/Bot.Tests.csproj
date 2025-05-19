@@ -25,12 +25,13 @@
         </PackageReference>
     </ItemGroup>
 
-    <ItemGroup>
-        <Using Include="Xunit"/>
-    </ItemGroup>
+  <ItemGroup>
+      <Using Include="Xunit"/>
+  </ItemGroup>
 
-    <ItemGroup>
+  <ItemGroup>
       <ProjectReference Include="..\Bot.Core\Bot.Core.csproj" />
-    </ItemGroup>
+      <ProjectReference Include="..\Bot.Host\Bot.Host.csproj" />
+  </ItemGroup>
 
 </Project>
