@@ -1,6 +1,7 @@
 using Bot.Infrastructure.Configuration;
 using Microsoft.CognitiveServices.Speech;
 using Microsoft.Extensions.Caching.Memory;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
 namespace Bot.Core.Services;
@@ -118,9 +119,14 @@ public class TextToSpeechService : ITextToSpeechService
     private readonly ISpeechSynthesizerFactory _factory;
     private readonly SpeechConfig _speechConfig;
     private readonly Func<string, string> _voiceSelector;
+    private readonly ILogger<TextToSpeechService> _logger;
 
-    public TextToSpeechService(IMemoryCache cache, IOptions<TextToSpeechOptions> options,
-        ISpeechSynthesizerFactory? factory = null, Func<string, string>? voiceSelector = null)
+    public TextToSpeechService(
+        IMemoryCache cache,
+        IOptions<TextToSpeechOptions> options,
+        ILogger<TextToSpeechService> logger,
+        ISpeechSynthesizerFactory? factory = null,
+        Func<string, string>? voiceSelector = null)
     {
         if (string.IsNullOrWhiteSpace(options.Value.SubscriptionKey))
             throw new ArgumentNullException(nameof(options.Value.SubscriptionKey));
@@ -129,8 +135,9 @@ public class TextToSpeechService : ITextToSpeechService
 
         _speechConfig = SpeechConfig.FromSubscription(options.Value.SubscriptionKey, options.Value.Region);
         _factory = factory ?? new DefaultSpeechSynthesizerFactory();
-
+        
         _voiceSelector = voiceSelector ?? CreateDefaultVoiceSelector(cache).GetAwaiter().GetResult();
+        _logger = logger;
     }
 
     public async Task<Stream> SynthesizeAsync(string text, string localeCode)
@@ -150,7 +157,10 @@ public class TextToSpeechService : ITextToSpeechService
         await using var synthesizer = _factory.Create(_speechConfig);
         var result = await synthesizer.SpeakTextAsync(text);
         if (result.Reason != ResultReason.SynthesizingAudioCompleted)
+        {
+            _logger.LogError("TTS failed with reason {Reason}", result.Reason);
             throw new InvalidOperationException($"TTS failed ({result.Reason}): {result}");
+        }
 
         // Return the raw audio bytes
         return new MemoryStream(result.AudioData);
