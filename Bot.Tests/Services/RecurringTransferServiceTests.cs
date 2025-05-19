@@ -6,6 +6,7 @@ using FluentAssertions;
 using MassTransit;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using NCrontab;
 using Moq;
 
 namespace Bot.Tests.Services;
@@ -174,5 +175,34 @@ public class RecurringTransferServiceTests
         var act = async () => await service.ProcessDueTransfersAsync();
 
         await act.Should().NotThrowAsync(); // handles it gracefully
+    }
+
+    [Fact]
+    public async Task Schedule_And_Cancel_Should_Work()
+    {
+        var db = CreateDb("schedule-cancel");
+        var bus = new Mock<IPublishEndpoint>();
+        var refGen = new ReferenceGenerator();
+        var service =
+            new RecurringTransferService(db, Mock.Of<ILogger<RecurringTransferService>>(), refGen, bus.Object);
+
+        var userId = Guid.NewGuid();
+        var payload = new RecurringPayload(
+            Guid.NewGuid(),
+            new TransferPayload("1111111111", "058", 500, null),
+            "* * * * *");
+
+        var now = DateTime.UtcNow;
+        var expectedNext = CrontabSchedule.Parse(payload.Cron).GetNextOccurrence(now);
+
+        var recId = await service.ScheduleAsync(userId, payload);
+
+        var rec = await db.RecurringTransfers.Include(r => r.Payee).FirstAsync(r => r.Id == recId);
+        db.Payees.Should().HaveCount(1);
+        rec.Payee.AccountNumber.Should().Be("1111111111");
+        rec.NextRun.Should().BeCloseTo(expectedNext, TimeSpan.FromSeconds(1));
+
+        await service.CancelRecurringAsync(recId);
+        (await db.RecurringTransfers.FindAsync(recId))!.IsActive.Should().BeFalse();
     }
 }
