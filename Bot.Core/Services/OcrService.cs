@@ -8,13 +8,11 @@ public interface IOcrService
     Task<string> ExtractTextAsync(Stream stream);
 }
 
-public class OcrService(DocumentAnalysisClient client) : IOcrService
+public class OcrService(IDocumentAnalysisClient client) : IOcrService
 {
     public async Task<string> ExtractTextAsync(Stream stream)
     {
-        var operation = await client.AnalyzeDocumentAsync(WaitUntil.Completed, "prebuilt-read", stream);
-        var result = operation.Value;
-
-        return string.Join(" ", result.Pages.SelectMany(p => p.Lines).Select(l => l.Content));
+        var lines = await client.ExtractLinesAsync(stream);
+        return string.Join(" ", lines);
     }
 }
