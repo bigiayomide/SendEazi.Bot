@@ -132,15 +132,8 @@ public class BillPayFlowTests : IAsyncLifetime
         Assert.True(await _harness.Published.Any<BillPayFailed>(x => x.Context.Message.CorrelationId == sid));
     }
 
-    private class FakeBillPayService : IBillPayService
+    private class FakeBillPayService(ApplicationDbContext db) : IBillPayService
     {
-        private readonly ApplicationDbContext _db;
-
-        public FakeBillPayService(ApplicationDbContext db)
-        {
-            _db = db;
-        }
-
         public bool ShouldFail { get; set; }
 
         public Task<IReadOnlyList<BillPayment>> ProcessDueBillPaymentsAsync()
@@ -161,8 +154,8 @@ public class BillPayFlowTests : IAsyncLifetime
                 CreatedAt = DateTime.UtcNow,
                 PaidAt = ShouldFail ? null : DateTime.UtcNow
             };
-            _db.BillPayments.Add(bill);
-            await _db.SaveChangesAsync();
+            db.BillPayments.Add(bill);
+            await db.SaveChangesAsync();
             return bill;
         }
     }
