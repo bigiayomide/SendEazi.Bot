@@ -1,4 +1,5 @@
 using Bot.Shared.Enums;
+using MassTransit;
 
 namespace Bot.Shared.DTOs;
 
@@ -26,7 +27,7 @@ public record PinInvalid(Guid CorrelationId, string Reason);
 /* intent */
 public record UserIntentDetected(
     Guid CorrelationId,
-    Bot.Shared.Enums.IntentType Intent,
+    IntentType Intent,
     TransferPayload? TransferPayload = null,
     BillPayload? BillPayload = null,
     GoalPayload? GoalPayload = null,
@@ -40,6 +41,13 @@ public record UserIntentDetected(
 
 /* money */
 public record TransferCompleted(Guid CorrelationId, string Reference);
+
+public class TimeoutExpired : CorrelatedBy<Guid>
+{
+    public Guid CorrelationId { get; set; }
+}
+
+
 
 public record TransferRequested(Guid CorrelationId, TransferPayload Payload, Guid? BankAccountId = null);
 
@@ -109,3 +117,5 @@ public record VoiceMessageTranscribed(Guid CorrelationId, string Text, string La
 public record OcrResultAvailable(Guid CorrelationId, string ExtractedText, string PhoneNumber);
 
 public record VoiceReplyReady(Guid CorrelationId, Stream AudioStream);
+
+public record IntentHandledEvent(Guid CorrelationId, string PhoneNumber,string Intent ,DateTime Timestamp): CorrelatedBy<Guid>;

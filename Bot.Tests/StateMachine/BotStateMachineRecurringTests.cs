@@ -26,7 +26,8 @@ public class BotStateMachineRecurringTests : IAsyncLifetime
             .AddSingleton<IReferenceGenerator>(_referenceGeneratorMock.Object)
             .AddMassTransitTestHarness(cfg =>
             {
-                cfg.AddSagaStateMachine<BotStateMachine, BotState>().InMemoryRepository();
+                cfg.AddSagaStateMachine<BotStateMachine, BotState>()
+                   .InMemoryRepository();
             })
             .BuildServiceProvider(true);
 
@@ -54,11 +55,11 @@ public class BotStateMachineRecurringTests : IAsyncLifetime
         var recurringId = Guid.NewGuid();
         var payload = new TransferPayload("111111", "001", 12345, "Test");
 
-        await _harness.Bus.Publish(new UserIntentDetected(id, Bot.Shared.Enums.IntentType.Transfer, TransferPayload: payload));
+        await _harness.Bus.Publish(new UserIntentDetected(id, Shared.Enums.IntentType.Transfer, TransferPayload: payload));
 
         var saga = _sagaHarness.Sagas.Contains(id);
-        saga.PendingIntentType = Bot.Shared.Enums.IntentType.Transfer;
-        saga.PendingIntentPayload = JsonSerializer.Serialize(new UserIntentDetected(id, Bot.Shared.Enums.IntentType.Transfer, TransferPayload: payload));
+        saga.PendingIntentType = Shared.Enums.IntentType.Transfer;
+        saga.PendingIntentPayload = JsonSerializer.Serialize(new UserIntentDetected(id, Shared.Enums.IntentType.Transfer, TransferPayload: payload));
 
         await _harness.Bus.Publish(new RecurringExecuted(id, recurringId));
         await _harness.InactivityTask;
@@ -72,7 +73,7 @@ public class BotStateMachineRecurringTests : IAsyncLifetime
     public async Task REC_02_Should_Stay_In_Current_State_On_RecurringFailed()
     {
         var id = NewId.NextGuid();
-        await _harness.Bus.Publish(new UserIntentDetected(id, Bot.Shared.Enums.IntentType.Transfer));
+        await _harness.Bus.Publish(new UserIntentDetected(id, Shared.Enums.IntentType.Transfer));
 
         await _harness.Bus.Publish(new RecurringFailed(id, "failed"));
         await _harness.InactivityTask;
@@ -87,11 +88,11 @@ public class BotStateMachineRecurringTests : IAsyncLifetime
     {
         var id = NewId.NextGuid();
         var recurringId = Guid.NewGuid();
-        await _harness.Bus.Publish(new UserIntentDetected(id, Bot.Shared.Enums.IntentType.Transfer));
+        await _harness.Bus.Publish(new UserIntentDetected(id, Shared.Enums.IntentType.Transfer));
         var payload = new TransferPayload("111111", "001", 12345, "Test");
         var saga = _sagaHarness.Sagas.Contains(id);
-        saga.PendingIntentType = Bot.Shared.Enums.IntentType.Transfer;
-        saga.PendingIntentPayload = JsonSerializer.Serialize(new UserIntentDetected(id, Bot.Shared.Enums.IntentType.Transfer, payload));
+        saga.PendingIntentType = Shared.Enums.IntentType.Transfer;
+        saga.PendingIntentPayload = JsonSerializer.Serialize(new UserIntentDetected(id, Shared.Enums.IntentType.Transfer, payload));
 
         await _harness.Bus.Publish(new RecurringCancelled(id, recurringId));
         await _harness.InactivityTask;
@@ -119,14 +120,13 @@ public class BotStateMachineRecurringTests : IAsyncLifetime
         
         var payload = new TransferPayload("111111", "001", 12345, "Test");
 
-        await _harness.Bus.Publish(new UserIntentDetected(id, Bot.Shared.Enums.IntentType.Transfer, TransferPayload: payload));
+        await _harness.Bus.Publish(new UserIntentDetected(id, Shared.Enums.IntentType.Transfer, TransferPayload: payload));
         var saga = _sagaHarness.Sagas.Contains(id);
 
-        saga.PendingIntentType = Bot.Shared.Enums.IntentType.Transfer;
-        saga.PendingIntentPayload = JsonSerializer.Serialize(new UserIntentDetected(id, Bot.Shared.Enums.IntentType.Transfer, TransferPayload: payload));
+        saga.PendingIntentType = Shared.Enums.IntentType.Transfer;
+        saga.PendingIntentPayload = JsonSerializer.Serialize(new UserIntentDetected(id, Shared.Enums.IntentType.Transfer, TransferPayload: payload));
 
         await _harness.Bus.Publish(new RecurringExecuted(id, Guid.NewGuid()));
-        await _harness.InactivityTask;
         await _harness.Bus.Publish(new RecurringExecuted(id, Guid.NewGuid()));
         await _harness.InactivityTask;
 

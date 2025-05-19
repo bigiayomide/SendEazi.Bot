@@ -47,5 +47,10 @@ public enum NudgeType
     WaitingOnMandate,
     Greeting,
     Unknown,
-    SignupRequired
+    SignupRequired,
+    AlreadyOnboarded,
+    TimedOut,
+    FloodProtection,
+    Canceled,
+    Help
 }

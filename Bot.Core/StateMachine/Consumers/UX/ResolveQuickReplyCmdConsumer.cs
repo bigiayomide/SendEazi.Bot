@@ -44,7 +44,7 @@ public class ResolveQuickReplyCmdConsumer(
 
         await bus.Publish(new UserIntentDetected(
             userId,
-            Bot.Shared.Enums.IntentType.Transfer,
+            Shared.Enums.IntentType.Transfer,
             payload));
     }
 }

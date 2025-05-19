@@ -29,9 +29,15 @@ public class BotState : SagaStateMachineInstance
     public Guid SessionId { get; set; }
     public string? PhoneNumber { get; set; }
 
-    public Bot.Shared.Enums.IntentType? PendingIntentType { get; set; } // Transfer, BillPay, etc.
-    public string? PendingIntentPayload { get; set; } // JSON string of full UserIntentDetected
+    public Enums.IntentType? PendingIntentType { get; set; }
+    public string? PendingIntentPayload { get; set; }
 
     public byte[]? RowVersion { get; set; }
     public Guid CorrelationId { get; set; }
+
+    // New fields for resiliency and diagnostics
+    public string? PendingPayloadHash { get; set; } // To prevent duplication
+    public string? SagaVersion { get; set; } = "v1"; // Version tracking for migrations
+    public DateTime? LastIntentHandledAt { get; set; } // Helps with concurrency control
+    public Guid? TimeoutTokenId { get; set; }   // Token for scheduling inactivity timeouts
 }

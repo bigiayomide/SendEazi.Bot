@@ -26,7 +26,8 @@ public class BotStateMachinePinAndIntentTests(ITestOutputHelper testOutputHelper
             .AddSingleton<IReferenceGenerator, ReferenceGenerator>()
             .AddMassTransitTestHarness(cfg =>
             {
-                cfg.AddSagaStateMachine<BotStateMachine, BotState>().InMemoryRepository();
+                cfg.AddSagaStateMachine<BotStateMachine, BotState>()
+                   .InMemoryRepository();
             })
             .BuildServiceProvider(true);
 
@@ -45,7 +46,7 @@ public class BotStateMachinePinAndIntentTests(ITestOutputHelper testOutputHelper
 
         await _harness.Bus.Publish(new UserIntentDetected(
             sagaId,
-            Bot.Shared.Enums.IntentType.Signup
+            Shared.Enums.IntentType.Signup
         ));
 
         await _harness.Bus.Publish(new FullNameProvided(
@@ -108,13 +109,13 @@ public class BotStateMachinePinAndIntentTests(ITestOutputHelper testOutputHelper
         Assert.True(ready.HasValue, "User should be in Ready state");
 
         // Now send transfer intent
-        await _harness.Bus.Publish(new UserIntentDetected(id, Bot.Shared.Enums.IntentType.Transfer, TransferPayload: payload));
+        await _harness.Bus.Publish(new UserIntentDetected(id, Shared.Enums.IntentType.Transfer, TransferPayload: payload));
 
         var exists = await _sagaHarness.Exists(id, x => x.AwaitingPinValidate, TimeSpan.FromSeconds(5));
         Assert.NotNull(exists);
 
         var saga = _sagaHarness.Sagas.Contains(exists.Value);
-        Assert.Equal(Bot.Shared.Enums.IntentType.Transfer, saga?.PendingIntentType);
+        Assert.Equal(Shared.Enums.IntentType.Transfer, saga?.PendingIntentType);
         Assert.NotNull(saga?.PendingIntentPayload);
     }
 
@@ -125,7 +126,7 @@ public class BotStateMachinePinAndIntentTests(ITestOutputHelper testOutputHelper
         var id = await SeedUserToReadyAsync();
         var payload = new TransferPayload("111111", "001", 12345, "Test");
 
-        await _harness.Bus.Publish(new UserIntentDetected(id, Bot.Shared.Enums.IntentType.Transfer, TransferPayload: payload));
+        await _harness.Bus.Publish(new UserIntentDetected(id, Shared.Enums.IntentType.Transfer, TransferPayload: payload));
         await _harness.InactivityTask; // wait for saga to move to AwaitingPinValidate
 
         await _harness.Bus.Publish(new PinValidated(id));
@@ -149,8 +150,10 @@ public class BotStateMachinePinAndIntentTests(ITestOutputHelper testOutputHelper
         var id = await SeedUserToReadyAsync();
         var payload = new TransferPayload("111111", "001", 12345, "Test");
 
-        await _harness.Bus.Publish(new UserIntentDetected(id, Bot.Shared.Enums.IntentType.Transfer, TransferPayload: payload));
+        await _harness.Bus.Publish(new UserIntentDetected(id, Shared.Enums.IntentType.Transfer, TransferPayload: payload));
+        await _harness.InactivityTask;
         await _harness.Bus.Publish(new PinInvalid(id, "wrong"));
+        await _harness.InactivityTask;
 
         var saga = _sagaHarness.Sagas.Contains(id);
         Assert.Equal("AwaitingPinValidate", saga?.CurrentState);
@@ -166,7 +169,7 @@ public class BotStateMachinePinAndIntentTests(ITestOutputHelper testOutputHelper
         var id = await SeedUserToReadyAsync();
         var payload = new BillPayload("DSTV", "123456", 5000, "DSTV");
 
-        await _harness.Bus.Publish(new UserIntentDetected(id, Bot.Shared.Enums.IntentType.BillPay, BillPayload: payload));
+        await _harness.Bus.Publish(new UserIntentDetected(id, Shared.Enums.IntentType.BillPay, BillPayload: payload));
         await _harness.InactivityTask; // saga enters AwaitingPinValidate
 
         await _harness.Bus.Publish(new PinValidated(id));
@@ -185,13 +188,15 @@ public class BotStateMachinePinAndIntentTests(ITestOutputHelper testOutputHelper
     {
         var id = await SeedUserToReadyAsync();
 
+        await _harness.Bus.Publish(new UserIntentDetected(id, Shared.Enums.IntentType.Transfer, TransferPayload: new TransferPayload("111111", "001", 12345, "Test")));
+        await _harness.InactivityTask;
         var saga = _sagaHarness.Sagas.Contains(id);
-        saga.PendingIntentType = Bot.Shared.Enums.IntentType.Unknown;
-        saga.PendingIntentPayload = JsonSerializer.Serialize(new UserIntentDetected(id, Bot.Shared.Enums.IntentType.Transfer));
+        saga.PendingIntentType = Shared.Enums.IntentType.Unknown;
+        saga.PendingIntentPayload = JsonSerializer.Serialize(new UserIntentDetected(id, Shared.Enums.IntentType.Transfer));
 
         await _harness.Bus.Publish(new PinValidated(id));
+        await _harness.InactivityTask;
         saga = _sagaHarness.Sagas.Contains(id);
-
         Assert.Equal("AwaitingPinValidate", saga?.CurrentState);
     }
 
@@ -200,11 +205,14 @@ public class BotStateMachinePinAndIntentTests(ITestOutputHelper testOutputHelper
     {
         var id = await SeedUserToReadyAsync();
 
+        await _harness.Bus.Publish(new UserIntentDetected(id, Shared.Enums.IntentType.Transfer, TransferPayload: new TransferPayload("111111", "001", 12345, "Test")));
+        await _harness.InactivityTask;
         var saga = _sagaHarness.Sagas.Contains(id);
         saga.PendingIntentPayload = "not valid json";
-        saga.PendingIntentType = Bot.Shared.Enums.IntentType.Transfer;
+        saga.PendingIntentType = Shared.Enums.IntentType.Transfer;
 
         await _harness.Bus.Publish(new PinValidated(id));
+        await _harness.InactivityTask;
 
         var after = _sagaHarness.Sagas.Contains(id);
         Assert.Equal("AwaitingPinValidate", after?.CurrentState);
@@ -215,11 +223,14 @@ public class BotStateMachinePinAndIntentTests(ITestOutputHelper testOutputHelper
     {
         var id = await SeedUserToReadyAsync();
 
+        await _harness.Bus.Publish(new UserIntentDetected(id, Shared.Enums.IntentType.Transfer, TransferPayload: new TransferPayload("111111", "001", 12345, "Test")));
+        await _harness.InactivityTask;
         var saga = _sagaHarness.Sagas.Contains(id);
-        saga.PendingIntentType = Bot.Shared.Enums.IntentType.Transfer;
+        saga.PendingIntentType = Shared.Enums.IntentType.Transfer;
         saga.PendingIntentPayload = null;
 
         await _harness.Bus.Publish(new PinValidated(id));
+        await _harness.InactivityTask;
 
         var result = _sagaHarness.Sagas.Contains(id);
         Assert.Equal("AwaitingPinValidate", result?.CurrentState);
@@ -231,8 +242,10 @@ public class BotStateMachinePinAndIntentTests(ITestOutputHelper testOutputHelper
         var id = await SeedUserToReadyAsync();
         var payload = new TransferPayload("111111", "001", 12345, "Test");
 
-        await _harness.Bus.Publish(new UserIntentDetected(id, Bot.Shared.Enums.IntentType.Transfer, TransferPayload: payload));
+        await _harness.Bus.Publish(new UserIntentDetected(id, Shared.Enums.IntentType.Transfer, TransferPayload: payload));
+        await _harness.InactivityTask;
         await _harness.Bus.Publish(new PinValidated(id));
+        await _harness.InactivityTask;
 
         var cmd = _harness.Published.Select<TransferCmd>().FirstOrDefault(x => x.Context.Message.CorrelationId == id);
         Assert.NotNull(cmd);
@@ -245,13 +258,16 @@ public class BotStateMachinePinAndIntentTests(ITestOutputHelper testOutputHelper
         var id = await SeedUserToReadyAsync();
         var payload = new TransferPayload("111111", "001", 12345, "Test");
 
-        await _harness.Bus.Publish(new UserIntentDetected(id, Bot.Shared.Enums.IntentType.Transfer, TransferPayload: payload));
+        await _harness.Bus.Publish(new UserIntentDetected(id, Shared.Enums.IntentType.Transfer, TransferPayload: payload));
+        await _harness.InactivityTask;
         await _harness.Bus.Publish(new PinInvalid(id, "wrong"));
+        await _harness.InactivityTask;
 
         var saga = _sagaHarness.Sagas.Contains(id);
         Assert.Equal("AwaitingPinValidate", saga?.CurrentState);
 
         await _harness.Bus.Publish(new PinValidated(id));
+        await _harness.InactivityTask;
 
         var cmd = _harness.Published.Select<TransferCmd>().FirstOrDefault(x => x.Context.Message.CorrelationId == id);
         Assert.NotNull(cmd);
@@ -265,9 +281,12 @@ public class BotStateMachinePinAndIntentTests(ITestOutputHelper testOutputHelper
         var transfer = new TransferPayload("111111", "001", 12345, "Test");
         var bill = new BillPayload("DSTV", "123456", 5000, "DSTV");
 
-        await _harness.Bus.Publish(new UserIntentDetected(id, Bot.Shared.Enums.IntentType.Transfer, TransferPayload: transfer));
-        await _harness.Bus.Publish(new UserIntentDetected(id, Bot.Shared.Enums.IntentType.BillPay, BillPayload: bill));
+        await _harness.Bus.Publish(new UserIntentDetected(id, Shared.Enums.IntentType.Transfer, TransferPayload: transfer));
+        await _harness.InactivityTask;
+        await _harness.Bus.Publish(new UserIntentDetected(id, Shared.Enums.IntentType.BillPay, BillPayload: bill));
+        await _harness.InactivityTask;
         await _harness.Bus.Publish(new PinValidated(id));
+        await _harness.InactivityTask;
 
         var billCmd = _harness.Published.Select<BillPayCmd>().FirstOrDefault(x => x.Context.Message.CorrelationId == id);
         Assert.NotNull(billCmd);
@@ -285,10 +304,10 @@ public class BotStateMachinePinAndIntentTests(ITestOutputHelper testOutputHelper
         var transfer = new TransferPayload("111111", "001", 12345, "Test");
         var bill = new BillPayload("DSTV", "123456", 5000, "DSTV");
 
-        await _harness.Bus.Publish(new UserIntentDetected(id, Bot.Shared.Enums.IntentType.Transfer, TransferPayload: transfer));
+        await _harness.Bus.Publish(new UserIntentDetected(id, Shared.Enums.IntentType.Transfer, TransferPayload: transfer));
         await _harness.InactivityTask; // ensure state transition
 
-        await _harness.Bus.Publish(new UserIntentDetected(id, Bot.Shared.Enums.IntentType.BillPay, BillPayload: bill));
+        await _harness.Bus.Publish(new UserIntentDetected(id, Shared.Enums.IntentType.BillPay, BillPayload: bill));
         await _harness.Bus.Publish(new PinValidated(id));
         await _harness.InactivityTask;
 

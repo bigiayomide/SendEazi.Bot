@@ -1,10 +1,15 @@
+using System.Security.Cryptography;
+using System.Text;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using Bot.Core.Services;
 using Bot.Shared;
 using Bot.Shared.DTOs;
 using Bot.Shared.Models;
+using Bot.Core.StateMachine.Helpers;
 using MassTransit;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 
 namespace Bot.Core.StateMachine;
 
@@ -38,9 +43,18 @@ public class BotStateMachine : MassTransitStateMachine<BotState>
     public Event<SignupSucceeded> SignOk { get; private set; } = null!;
     public Event<TransferFailed> TxBad { get; private set; } = null!;
     public Event<TransferCompleted> TxOk { get; private set; } = null!;
+    public Schedule<BotState, TimeoutExpired> TimeoutSchedule { get; private set; } = null!;
+    
+    private readonly ILogger<BotStateMachine> _logger;
 
-    public BotStateMachine()
+    private static readonly JsonSerializerOptions DedupeJsonOptions = new JsonSerializerOptions
     {
+        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+    };
+    public BotStateMachine(ILogger<BotStateMachine> logger)
+    {
+        _logger = logger;
         InstanceState(x => x.CurrentState);
 
         // Event correlations
@@ -54,7 +68,8 @@ public class BotStateMachine : MassTransitStateMachine<BotState>
             {
                 CorrelationId = context.Message.CorrelationId,
                 SessionId = Guid.NewGuid(),
-                PhoneNumber = context.Message.PhoneNumber // Assign if available
+                PhoneNumber = context.Message.PhoneNumber, // Assign if available
+                SagaVersion = "v1"
             });
         });
 
@@ -94,6 +109,107 @@ public class BotStateMachine : MassTransitStateMachine<BotState>
         Event(() => GoalAlert, x => x.CorrelateById(m => m.Message.CorrelationId));
         Event(() => MandateReadyEvt, x => x.CorrelateById(m => m.Message.CorrelationId));
 
+        // Inactivity timeout scheduling for input states
+        Schedule(() => TimeoutSchedule,
+                 x => x.TimeoutTokenId,
+                 x =>
+                 {
+                     x.Delay = TimeSpan.FromMinutes(5);
+                     x.Received = r => r.CorrelateById(m => m.Message.CorrelationId);
+                 });
+
+        // Idempotency guard: dedupe repeated intents and route them to appropriate flows
+                DuringAny(
+            When(IntentEvt)
+                .ThenAsync(async ctx =>
+                {
+                    var now = DateTime.UtcNow;
+                    var json = JsonSerializer.Serialize(ctx.Message, DedupeJsonOptions);
+                    var hash = Convert.ToBase64String(SHA256.HashData(Encoding.UTF8.GetBytes(json)));
+
+                    // 🧘 Flood protection BEFORE updating intent timestamp
+                    if ((now - ctx.Saga.LastIntentHandledAt)?.TotalSeconds < 2)
+                    {
+                        await ctx.Publish(new NudgeCmd(ctx.Saga.CorrelationId, NudgeType.FloodProtection, ctx.Saga.PhoneNumber, "⚠️ Please wait a moment before trying again."));
+                        return;
+                    }
+
+                    if (ctx.Saga.PendingPayloadHash == hash)
+                    {
+                        _logger.LogWarning("Duplicate intent payload detected for CorrelationId: {Id}", ctx.Saga.CorrelationId);
+                        return;
+                    }
+
+                    ctx.Saga.LastIntentHandledAt = now;
+                    ctx.Saga.PendingIntentPayload = json;
+                    ctx.Saga.PendingIntentType = ctx.Message.Intent;
+                    ctx.Saga.PendingPayloadHash = hash;
+
+                    // 📊 Publish audit trail
+                    await ctx.Publish(new IntentHandledEvent(ctx.Saga.CorrelationId, ctx.Saga.PhoneNumber!, ctx.Message.Intent.ToString(),now));
+
+                    switch (ctx.Message.Intent)
+                    {
+                        case Bot.Shared.Enums.IntentType.Signup:
+                            if (ctx.Saga.KycApproved && ctx.Saga.BankLinked && ctx.Saga.PinSet)
+                            {
+                                await ctx.Publish(new NudgeCmd(ctx.Saga.CorrelationId, NudgeType.AlreadyOnboarded, ctx.Saga.PhoneNumber, "✅ You're already signed up. Type 'balance' or 'send money' to continue."));
+                                return;
+                            }
+                            await ctx.Publish(new PromptFullNameCmd(ctx.Saga.CorrelationId));
+                            await SetState("AskFullName")(ctx);
+                            ctx.TransitionToState(AskFullName);
+                            break;
+
+                        case Bot.Shared.Enums.IntentType.Transfer:
+                        case Bot.Shared.Enums.IntentType.BillPay:
+                            await ctx.Publish(new NudgeCmd(ctx.Saga.CorrelationId, NudgeType.BadPin, ctx.Saga.PhoneNumber, "🔐 Please enter your PIN to proceed."));
+                            await SetState("AwaitingPinValidate")(ctx);
+                            ctx.TransitionToState(AwaitingPinValidate);
+                            break;
+
+                        case Bot.Shared.Enums.IntentType.Greeting:
+                            await ctx.Publish(new NudgeCmd(ctx.Saga.CorrelationId, NudgeType.Greeting, ctx.Saga.PhoneNumber, "👋 Hello! Let me know what you'd like to do next."));
+                            break;
+
+                        case Bot.Shared.Enums.IntentType.Help:
+                            await ctx.Publish(new NudgeCmd(ctx.Saga.CorrelationId, NudgeType.Help, ctx.Saga.PhoneNumber, "💡 Try 'send money', 'check balance', 'set goal', or 'cancel'."));
+                            break;
+
+                        case Bot.Shared.Enums.IntentType.Cancel:
+                            await ctx.Publish(new NudgeCmd(ctx.Saga.CorrelationId, NudgeType.Canceled, ctx.Saga.PhoneNumber, "❌ Operation canceled. Start again anytime."));
+                            await ctx.SetCompleted();
+                            break;
+
+                        case Bot.Shared.Enums.IntentType.SetGoal:
+                            await ctx.Publish(new GoalsCmd(ctx.Saga.CorrelationId, ctx.Message.GoalPayload!));
+                            break;
+
+                        case Bot.Shared.Enums.IntentType.ScheduleRecurring:
+                            await ctx.Publish(new RecurringCmd(ctx.Saga.CorrelationId, ctx.Message.RecurringPayload!));
+                            break;
+
+                        case Bot.Shared.Enums.IntentType.Memo:
+                            await ctx.Publish(new MemoCmd(ctx.Saga.CorrelationId, ctx.Message.MemoPayload!));
+                            break;
+
+                        case Bot.Shared.Enums.IntentType.Feedback:
+                            await ctx.Publish(new FeedbackCmd(ctx.Saga.CorrelationId, ctx.Message.FeedbackPayload!));
+                            break;
+
+                        case Bot.Shared.Enums.IntentType.Unknown:
+                            await ctx.Publish(new NudgeCmd(ctx.Saga.CorrelationId, NudgeType.Unknown, ctx.Saga.PhoneNumber, "❓ I didn’t get that. Try saying 'check balance' or 'send money'."));
+                            break;
+                    }
+                })
+        );
+
+        // Schedule inactivity timeout on state entry for critical input states
+        WhenEnter(AskFullName, binder => binder.Schedule(TimeoutSchedule, ctx => new TimeoutExpired { CorrelationId = ctx.Saga.CorrelationId }));
+        WhenEnter(AskNin,    binder => binder.Schedule(TimeoutSchedule, ctx => new TimeoutExpired { CorrelationId = ctx.Saga.CorrelationId }));
+        WhenEnter(AskBvn,    binder => binder.Schedule(TimeoutSchedule, ctx => new TimeoutExpired { CorrelationId = ctx.Saga.CorrelationId }));
+        WhenEnter(AwaitingPinValidate, binder => binder.Schedule(TimeoutSchedule, ctx => new TimeoutExpired { CorrelationId = ctx.Saga.CorrelationId }));
+
         // Webhook: handle transfer callbacks
         Initially(
             When(TxOk)
@@ -111,7 +227,7 @@ public class BotStateMachine : MassTransitStateMachine<BotState>
 
         // Onboarding Flow
         Initially(
-            When(IntentEvt, ctx => ctx.Message.Intent == Bot.Shared.Enums.IntentType.Signup)
+            When(IntentEvt, ctx => ctx.Message.Intent == Shared.Enums.IntentType.Signup)
                 .ThenAsync(SetState("AskFullName"))
                 .PublishAsync(ctx => Task.FromResult(new PromptFullNameCmd(ctx.Saga.CorrelationId)))
                 .TransitionTo(AskFullName),
@@ -122,27 +238,47 @@ public class BotStateMachine : MassTransitStateMachine<BotState>
                 .PublishAsync(ctx => Task.FromResult(new PromptFullNameCmd(ctx.Saga.CorrelationId)))
                 .TransitionTo(AskFullName),
             
-            When(IntentEvt, ctx => ctx.Message.Intent == Bot.Shared.Enums.IntentType.Greeting)
+            When(IntentEvt, ctx => ctx.Message.Intent == Shared.Enums.IntentType.Greeting)
                 .ThenAsync(ctx => ctx.Publish(new NudgeCmd(ctx.Saga.CorrelationId, NudgeType.Greeting, ctx.Saga.PhoneNumber, "👋 Hello! Let me know what you'd like to do next."))),
 
-            When(IntentEvt, ctx => ctx.Message.Intent == Bot.Shared.Enums.IntentType.Unknown)
+            When(IntentEvt, ctx => ctx.Message.Intent == Shared.Enums.IntentType.Unknown)
                 .ThenAsync(ctx => ctx.Publish(new NudgeCmd(ctx.Saga.CorrelationId, NudgeType.Unknown, ctx.Saga.PhoneNumber,"❓ I didn’t get that. Try saying 'check balance' or 'send money'.")))
         );
 
         During(AskFullName,
+
             When(NameEvt)
+                .Unschedule(TimeoutSchedule)
                 .Then(ctx => ctx.Saga.TempName = ctx.Message.FullName)
                 .ThenAsync(SetState("AskNin"))
                 .PublishAsync(ctx => Task.FromResult(new PromptNinCmd(ctx.Saga.CorrelationId)))
-                .TransitionTo(AskNin)
+                .TransitionTo(AskNin),
+
+            When(TimeoutSchedule.Received)
+                .Unschedule(TimeoutSchedule)
+                .ThenAsync(async ctx =>
+                {
+                    await ctx.Publish(new NudgeCmd(ctx.Saga.CorrelationId, NudgeType.TimedOut, ctx.Saga.PhoneNumber!, "⌛ Session expired due to inactivity."));
+                })
+                .Finalize()
         );
 
         During(AskNin,
+
             When(NinEvt)
+                .Unschedule(TimeoutSchedule)
                 .Then(ctx => ctx.Saga.TempNIN = ctx.Message.NIN)
                 .ThenAsync(SetState("NinValidating"))
                 .PublishAsync(ctx => Task.FromResult(new ValidateNinCmd(ctx.Saga.CorrelationId, ctx.Message.NIN)))
-                .TransitionTo(NinValidating)
+                .TransitionTo(NinValidating),
+
+            When(TimeoutSchedule.Received)
+                .Unschedule(TimeoutSchedule)
+                .ThenAsync(async ctx =>
+                {
+                    await ctx.Publish(new NudgeCmd(ctx.Saga.CorrelationId, NudgeType.TimedOut, ctx.Saga.PhoneNumber!, "⌛ Session expired due to inactivity."));
+                })
+                .Finalize()
         );
 
         During(NinValidating,
@@ -157,11 +293,21 @@ public class BotStateMachine : MassTransitStateMachine<BotState>
         );
 
         During(AskBvn,
+
             When(BvnEvt)
+                .Unschedule(TimeoutSchedule)
                 .Then(ctx => ctx.Saga.TempBVN = ctx.Message.BVN)
                 .ThenAsync(SetState("BvnValidating"))
                 .PublishAsync(ctx => Task.FromResult(new ValidateBvnCmd(ctx.Saga.CorrelationId, ctx.Message.BVN)))
-                .TransitionTo(BvnValidating)
+                .TransitionTo(BvnValidating),
+
+            When(TimeoutSchedule.Received)
+                .Unschedule(TimeoutSchedule)
+                .ThenAsync(async ctx =>
+                {
+                    await ctx.Publish(new NudgeCmd(ctx.Saga.CorrelationId, NudgeType.TimedOut, ctx.Saga.PhoneNumber!, "⌛ Session expired due to inactivity."));
+                })
+                .Finalize()
         );
 
         During(BvnValidating,
@@ -213,23 +359,12 @@ public class BotStateMachine : MassTransitStateMachine<BotState>
                 .Then(ctx => ctx.Saga.LastFailureReason = "BankLinkFailed")
         );
 
-        During(AwaitingPinValidate,
-            When(PinBad)
-                .PublishAsync(ctx => Task.FromResult(new NudgeCmd(ctx.Saga.CorrelationId, NudgeType.BadPin,  ctx.Saga.PhoneNumber, "⛔ Incorrect PIN. Please try again."))),
-            When(IntentEvt, ctx => ctx.Message.Intent is Bot.Shared.Enums.IntentType.Transfer or Bot.Shared.Enums.IntentType.BillPay)
-                .Then(ctx =>
-                {
-                    ctx.Saga.PendingIntentType = ctx.Message.Intent;
-                    ctx.Saga.PendingIntentPayload = JsonSerializer.Serialize(ctx.Message);
-                })
-                .PublishAsync(ctx => Task.FromResult(new NudgeCmd(ctx.Saga.CorrelationId, NudgeType.BadPin, ctx.Saga.PhoneNumber, "🔐 Please enter your PIN to proceed."))),
-            When(PinSetEvt)
-                .ThenAsync(SetState("Ready"))
-                .TransitionTo(Ready)
-        );
 
         During(Ready,
-            When(IntentEvt, ctx => ctx.Message.Intent is Bot.Shared.Enums.IntentType.Transfer or Bot.Shared.Enums.IntentType.BillPay)
+            When(PinOk, ctx => ctx.Saga.PendingIntentType.HasValue && string.IsNullOrEmpty(ctx.Saga.PendingIntentPayload))
+                .ThenAsync(SetState("AwaitingPinValidate"))
+                .TransitionTo(AwaitingPinValidate),
+            When(IntentEvt, ctx => ctx.Message.Intent is Shared.Enums.IntentType.Transfer or Shared.Enums.IntentType.BillPay)
                 .ThenAsync(async ctx =>
                 {
                     ctx.Saga.PendingIntentType = ctx.Message.Intent;
@@ -241,41 +376,79 @@ public class BotStateMachine : MassTransitStateMachine<BotState>
         );
 
         During(AwaitingPinValidate,
-            When(PinOk)
-                .ThenAsync(async ctx =>
+            When(PinBad)
+                .Unschedule(TimeoutSchedule)
+                .PublishAsync(ctx => Task.FromResult(new NudgeCmd(ctx.Saga.CorrelationId, NudgeType.BadPin,
+                    ctx.Saga.PhoneNumber, "⛔ Incorrect PIN. Please try again."))),
+
+            When(IntentEvt,
+                    ctx => ctx.Message.Intent is Shared.Enums.IntentType.Transfer or Shared.Enums.IntentType.BillPay)
+                .Unschedule(TimeoutSchedule)
+                .Then(ctx =>
                 {
-                    var intent = ctx.Saga.PendingIntentType;
-                    var payloadJson = ctx.Saga.PendingIntentPayload;
-                    
-                    switch (intent)
-                    {
-                        case Bot.Shared.Enums.IntentType.Transfer:
-                            var transfer = JsonSerializer.Deserialize<UserIntentDetected>(payloadJson!)!;
-                            var refGen = ctx.TryGetPayload<IServiceProvider>(out var sp)
-                                ? sp.GetService<IReferenceGenerator>()
-                                : null;
-                    
-                    
-                            var reference = refGen.GenerateTransferRef(
-                                ctx.Saga.CorrelationId,
-                                transfer.TransferPayload!.ToAccount,
-                                transfer.TransferPayload.BankCode
-                            );
-                            await ctx.Publish(new TransferCmd(ctx.Saga.CorrelationId, transfer.TransferPayload, reference));
-                            break;
-                    
-                        case Bot.Shared.Enums.IntentType.BillPay:
-                            var bill = JsonSerializer.Deserialize<UserIntentDetected>(payloadJson!)!;
-                            await ctx.Publish(new BillPayCmd(ctx.Saga.CorrelationId, bill.BillPayload!));
-                            break;
-                    }
-                    
-                    ctx.Saga.PendingIntentType = null;
-                    ctx.Saga.PendingIntentPayload = null;
+                    ctx.Saga.PendingIntentType = ctx.Message.Intent;
+                    ctx.Saga.PendingIntentPayload = JsonSerializer.Serialize(ctx.Message);
                 })
+                .PublishAsync(ctx => Task.FromResult(new NudgeCmd(ctx.Saga.CorrelationId, NudgeType.BadPin,
+                    ctx.Saga.PhoneNumber, "🔐 Please enter your PIN to proceed.")))
+                .TransitionTo(AwaitingPinValidate),
+
+            When(PinSetEvt)
+                .Unschedule(TimeoutSchedule)
                 .ThenAsync(SetState("Ready"))
-                .TransitionTo(Ready)
-        );
+                .TransitionTo(Ready),
+
+            When(PinOk)
+                .Unschedule(TimeoutSchedule)
+                .ThenAsync(async ctx =>
+                    {
+                        if (ctx.Saga.PendingIntentType == Shared.Enums.IntentType.Transfer
+                            && !string.IsNullOrEmpty(ctx.Saga.PendingIntentPayload))
+                        {
+                            try
+                            {
+                                var detected =
+                                    JsonSerializer.Deserialize<UserIntentDetected>(ctx.Saga.PendingIntentPayload!)!;
+                                var refGen = ctx.TryGetPayload<IServiceProvider>(out var sp)
+                                    ? sp.GetService<IReferenceGenerator>()
+                                    : null;
+                                var reference = refGen?.GenerateTransferRef(
+                                    ctx.Saga.CorrelationId,
+                                    detected.TransferPayload!.ToAccount,
+                                    detected.TransferPayload.BankCode
+                                )!;
+                                await ctx.Publish(new TransferCmd(ctx.Saga.CorrelationId, detected.TransferPayload,
+                                    reference));
+                                ctx.Saga.PendingIntentType = null;
+                                ctx.Saga.PendingIntentPayload = null;
+                                ctx.Saga.PendingPayloadHash = null;
+                                await SetState("Ready")(ctx);
+                                await ctx.TransitionToState(Ready);
+                            }
+                            catch (JsonException)
+                            {
+                            }
+                        }
+                        else if (ctx.Saga.PendingIntentType == Shared.Enums.IntentType.BillPay
+                                 && !string.IsNullOrEmpty(ctx.Saga.PendingIntentPayload))
+                        {
+                            try
+                            {
+                                var detected =
+                                    JsonSerializer.Deserialize<UserIntentDetected>(ctx.Saga.PendingIntentPayload!)!;
+                                await ctx.Publish(new BillPayCmd(ctx.Saga.CorrelationId, detected.BillPayload!));
+                                ctx.Saga.PendingIntentType = null;
+                                ctx.Saga.PendingIntentPayload = null;
+                                ctx.Saga.PendingPayloadHash = null;
+                                await SetState("Ready")(ctx);
+                                await ctx.TransitionToState(Ready);
+                            }
+                            catch (JsonException)
+                            {
+                            }
+                        }
+                    }
+                ));
 
         // Recurring flows: handle scheduled executions, failures, and cancellations
         DuringAny(
@@ -294,7 +467,7 @@ public class BotStateMachine : MassTransitStateMachine<BotState>
                                 : null;
                             switch (intent.Value)
                             {
-                                case Bot.Shared.Enums.IntentType.Transfer:
+                                case Shared.Enums.IntentType.Transfer:
                                     var transferPayload = detected.TransferPayload!;
                                     var reference = refGen?.GenerateTransferRef(
                                         ctx.Saga.CorrelationId,
@@ -303,13 +476,14 @@ public class BotStateMachine : MassTransitStateMachine<BotState>
                                     )!;
                                     await ctx.Publish(new TransferCmd(ctx.Saga.CorrelationId, transferPayload, reference));
                                     break;
-                                case Bot.Shared.Enums.IntentType.BillPay:
+                                case Shared.Enums.IntentType.BillPay:
                                     await ctx.Publish(new BillPayCmd(ctx.Saga.CorrelationId, detected.BillPayload!));
                                     break;
                             }
                         }
-                        catch (JsonException)
+                        catch (JsonException ex)
                         {
+                            logger.LogError(ex, "Failed to deserialize RecExec payload for CorrelationId: {Id}", ctx.Saga.CorrelationId);
                         }
                     }
                 }),
@@ -320,18 +494,21 @@ public class BotStateMachine : MassTransitStateMachine<BotState>
                 {
                     ctx.Saga.PendingIntentType = null;
                     ctx.Saga.PendingIntentPayload = null;
+                    ctx.Saga.PendingPayloadHash = null;
                 })
+                .Unschedule(TimeoutSchedule)
+                .Finalize(),
+            When(TimeoutSchedule.Received)
+                .Unschedule(TimeoutSchedule)
+                .ThenAsync(async ctx =>
+                {
+                    _logger.LogInformation("Timeout reached for CorrelationId: {Id}", ctx.Saga.CorrelationId);
+                    await ctx.Publish(new NudgeCmd(ctx.Saga.CorrelationId, NudgeType.TimedOut, ctx.Saga.PhoneNumber!, "⌛ Session expired due to inactivity."));
+                })
+                .Finalize()
         );
 
-        // Side-effect only: greeting/unknown handled everywhere
-        DuringAny(
-            When(IntentEvt, ctx => ctx.Message.Intent == Bot.Shared.Enums.IntentType.Greeting)
-                .ThenAsync(ctx => ctx.Publish(new NudgeCmd(ctx.Saga.CorrelationId, NudgeType.Greeting,  ctx.Saga.PhoneNumber, "👋 Hello! Let me know what you'd like to do next."))),
-            When(IntentEvt, ctx => ctx.Message.Intent == Bot.Shared.Enums.IntentType.Unknown)
-                .ThenAsync(ctx => ctx.Publish(new NudgeCmd(ctx.Saga.CorrelationId, NudgeType.Unknown,  ctx.Saga.PhoneNumber, "❓ I didn’t get that. Try saying 'check balance' or 'send money'.")))
-        );
 
-        SetCompletedWhenFinalized();
     }
 
     // States
@@ -358,6 +535,8 @@ public class BotStateMachine : MassTransitStateMachine<BotState>
                 throw new InvalidOperationException("IConversationStateService could not be resolved.");
 
             await service.SetStateAsync(ctx.Saga.SessionId, s);
+            ctx.Saga.LastIntentHandledAt = DateTime.UtcNow;
+            ctx.Saga.UpdatedUtc = DateTime.UtcNow;
         };
     }
 

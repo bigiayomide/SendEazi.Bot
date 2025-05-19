@@ -24,7 +24,8 @@ public class BotStateMachineWebhookTests : IAsyncLifetime
             .AddSingleton(_stateServiceMock.Object)
             .AddMassTransitTestHarness(cfg =>
             {
-                cfg.AddSagaStateMachine<BotStateMachine, BotState>().InMemoryRepository();
+                cfg.AddSagaStateMachine<BotStateMachine, BotState>()
+                   .InMemoryRepository();
             })
             .BuildServiceProvider(true);
 

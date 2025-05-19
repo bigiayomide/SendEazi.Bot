@@ -14,6 +14,7 @@ using Bot.Core.StateMachine.Consumers.UX;
 using Bot.Host.BackgroundJobs;
 using Bot.Infrastructure.Configuration;
 using Bot.Infrastructure.Data;
+using Bot.Core.StateMachine.Helpers;
 using Bot.Shared.Models;
 using MassTransit;
 using Microsoft.AspNetCore.Identity;
@@ -101,18 +102,19 @@ public static class ServiceCollectionExtensions
         services.AddScoped<ITextToSpeechService, TextToSpeechService>();
 
         services.Configure<MonoOptions>(cfg.GetSection("Mono"));
-        services.AddHttpClient<MonoBankProvider>();
-        services.AddScoped<MonoBankProvider>();
+services.AddHttpClient<MonoBankProvider>()
+    .SetHandlerLifetime(TimeSpan.FromMinutes(5));
         services.Configure<OnePipeOptions>(cfg.GetSection("OnePipe"));
-        services.AddHttpClient<OnePipeBankProvider>();
+services.AddHttpClient<OnePipeBankProvider>()
+    .SetHandlerLifetime(TimeSpan.FromMinutes(5));
         services.AddScoped<IBankProviderFactory, BankProviderFactory>();
-        services.AddScoped<OnePipeBankProvider>();  
 
 
         services.Configure<WhatsAppOptions>(cfg.GetSection("WhatsApp"));
         services.Configure<PromptSettings>(cfg.GetSection("PromptSettings"));
         
-        services.AddHttpClient<IWhatsAppService, WhatsAppService>();
+        services.AddHttpClient<IWhatsAppService, WhatsAppService>()
+    .SetHandlerLifetime(TimeSpan.FromMinutes(5));
         services.Configure<SmsOptions>(cfg.GetSection("Sms"));
         services.AddScoped<ISmsBackupService, SmsBackupService>();
 

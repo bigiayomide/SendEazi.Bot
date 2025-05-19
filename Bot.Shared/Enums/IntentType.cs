@@ -10,5 +10,7 @@ public enum IntentType
     SetGoal,
     ScheduleRecurring,
     Memo,
-    Feedback
+    Feedback,
+    Help,
+    Cancel
 }
