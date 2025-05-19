@@ -126,4 +126,23 @@ public class RecurringFlowTests : IAsyncLifetime
         Assert.Single(_db.RecurringTransfers);
         Assert.Single(_db.Payees);
     }
+
+    [Fact]
+    public async Task Should_Handle_Recurring_Failure()
+    {
+        var userId = Guid.NewGuid();
+        var sid = await SeedReadyAsync(userId);
+
+        var transfer = new TransferPayload("3333", "555", 50, "RecurringFail");
+        var saga = _sagaHarness.Sagas.Contains(sid);
+        saga.PendingIntentType = IntentType.Transfer;
+        saga.PendingIntentPayload = JsonSerializer.Serialize(new UserIntentDetected(sid, IntentType.Transfer, TransferPayload: transfer));
+
+        await _harness.Bus.Publish(new RecurringFailed(sid, "fail"));
+        await _harness.InactivityTask;
+
+        saga = _sagaHarness.Sagas.Contains(sid);
+        Assert.Equal("AwaitingPinValidate", saga?.CurrentState);
+        Assert.True(await _harness.Published.Any<NudgeCmd>(x => x.Context.Message.CorrelationId == sid && x.Context.Message.NudgeType == NudgeType.RecurringFailed));
+    }
 }

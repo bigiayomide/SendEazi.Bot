@@ -78,4 +78,37 @@ public class OnboardingFlowTests : IAsyncLifetime
 
         Assert.NotNull(final);
     }
+
+    [Fact]
+    public async Task Should_Return_To_BankLink_On_Failure()
+    {
+        var id = NewId.NextGuid();
+        var userId = Guid.NewGuid();
+
+        await _harness.Bus.Publish(new UserIntentDetected(id, IntentType.Signup,
+            SignupPayload: new SignupPayload("Jane Doe", "+2348110000000", "12345678901", "12345678901")));
+        await _sagaHarness.Exists(id, x => x.NinValidating, TimeSpan.FromSeconds(5));
+
+        await _harness.Bus.Publish(new NinVerified(id, "12345678901"));
+        await _sagaHarness.Exists(id, x => x.AskBvn, TimeSpan.FromSeconds(5));
+
+        await _harness.Bus.Publish(new BvnProvided(id, "12345678901"));
+        await _sagaHarness.Exists(id, x => x.BvnValidating, TimeSpan.FromSeconds(5));
+
+        await _harness.Bus.Publish(new BvnVerified(id, "12345678901"));
+        await _sagaHarness.Exists(id, x => x.AwaitingKyc, TimeSpan.FromSeconds(5));
+
+        await _harness.Bus.Publish(new SignupSucceeded(id, userId));
+        await _sagaHarness.Exists(id, x => x.AwaitingBankLink, TimeSpan.FromSeconds(5));
+
+        await _harness.Bus.Publish(new MandateReadyToDebit(id, "mandate", "Mono"));
+        await _sagaHarness.Exists(id, x => x.AwaitingPinSetup, TimeSpan.FromSeconds(5));
+
+        await _harness.Bus.Publish(new BankLinkFailed(id, "denied"));
+        await _sagaHarness.Exists(id, x => x.AwaitingBankLink, TimeSpan.FromSeconds(5));
+
+        var saga = _sagaHarness.Sagas.Contains(id);
+        Assert.Equal("AwaitingBankLink", saga?.CurrentState);
+        Assert.Equal("BankLinkFailed", saga?.LastFailureReason);
+    }
 }
