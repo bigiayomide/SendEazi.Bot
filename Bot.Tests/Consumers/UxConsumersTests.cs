@@ -19,11 +19,17 @@ public class UxConsumersTests
     public async Task QuickReplyCmd_Should_Send_And_Publish()
     {
         var userId = Guid.NewGuid();
+
         var wa = new Mock<IWhatsAppService>();
         var replySvc = new Mock<IQuickReplyService>();
         replySvc.Setup(r => r.GetQuickRepliesAsync(userId, 5)).ReturnsAsync(["A", "B"]);
+
         var userSvc = new Mock<IUserService>();
-        userSvc.Setup(u => u.GetByIdAsync(userId)).ReturnsAsync(new User { Id = userId, PhoneNumber = "234" });
+        userSvc.Setup(u => u.GetByIdAsync(userId)).ReturnsAsync(new User
+        {
+            Id = userId,
+            PhoneNumber = "234" // ✅ Match exactly what consumer will use
+        });
 
         var harness = await TestContextHelper.BuildTestHarness<QuickReplyCmdConsumer>(services =>
         {
@@ -34,9 +40,21 @@ public class UxConsumersTests
 
         await harness.Bus.Publish(new QuickReplyCmd(userId, "tmpl", new[] { "Hello" }));
 
-        wa.Verify(w => w.SendQuickReplyAsync("234", "Your top payees", It.IsAny<string>(), It.IsAny<string[]>()),
+        // ✅ Ensure consumer executed
+        Assert.True(await harness.Consumed.Any<QuickReplyCmd>(), "QuickReplyCmd was not consumed");
+
+        // ✅ Verify WhatsApp message was sent
+        wa.Verify(w =>
+                w.SendQuickReplyAsync(
+                    It.Is<string>(p => p == "234"),
+                    It.Is<string>(t => t == "Your top payees"),
+                    It.IsAny<string>(),
+                    It.IsAny<string[]>()),
             Times.Once);
+
+        // ✅ Verify event published
         (await harness.Published.Any<QuickReplySent>()).Should().BeTrue();
+
         await harness.Stop();
     }
 
@@ -56,18 +74,29 @@ public class UxConsumersTests
 
         await harness.Bus.Publish(new NudgeCmd(Guid.NewGuid(), NudgeType.TransferFail, "+234", "text"));
 
+        // Ensure consumer actually handled it
+        Assert.True(await harness.Consumed.Any<NudgeCmd>(), "NudgeCmd was not consumed");
+
+        // Verify WhatsApp message was sent
         wa.Verify(w => w.SendTextMessageAsync("+234", "text"), Times.Once);
+
+        // Verify event was published
         (await harness.Published.Any<NudgeSent>()).Should().BeTrue();
+
         await harness.Stop();
     }
+
 
     [Fact]
     public async Task VoiceMessageCmd_Should_Publish_Transcribed()
     {
         var speech = new Mock<ISpeechService>();
-        speech.Setup(s => s.TranscribeAsync(It.IsAny<Stream>())).ReturnsAsync(("hi", "en"));
-        var handler = new MockHttpMessageHandler("data");
+        speech.Setup(s => s.TranscribeAsync(It.IsAny<Stream>()))
+            .ReturnsAsync(("hi", "en"));
+
+        var handler = new MockHttpMessageHandler("dummy audio");
         var client = new HttpClient(handler);
+
         var factory = new Mock<IHttpClientFactory>();
         factory.Setup(f => f.CreateClient(It.IsAny<string>())).Returns(client);
 
@@ -77,18 +106,25 @@ public class UxConsumersTests
             services.AddSingleton(factory.Object);
         });
 
-        await harness.Bus.Publish(new VoiceMessageCmd(Guid.NewGuid(), "url", "+234"));
+        await harness.Bus.Publish(new VoiceMessageCmd(Guid.NewGuid(), "http://fake.url/audio", "+234"));
 
-        (await harness.Published.Any<VoiceMessageTranscribed>()).Should().BeTrue();
+        // ✅ Confirm consumer ran
+        Assert.True(await harness.Consumed.Any<VoiceMessageCmd>(), "VoiceMessageCmd was not consumed");
+
+        // ✅ Confirm event was published
+        Assert.True(await harness.Published.Any<VoiceMessageTranscribed>(), "VoiceMessageTranscribed was not published");
+
         await harness.Stop();
     }
+
 
     [Fact]
     public async Task ImageUploadedCmd_Should_Publish_OcrResult()
     {
         var ocr = new Mock<IOcrService>();
         ocr.Setup(o => o.ExtractTextAsync(It.IsAny<Stream>())).ReturnsAsync("text");
-        var handler = new MockHttpMessageHandler("img");
+
+        var handler = new MockHttpMessageHandler("fake image content");
         var client = new HttpClient(handler);
         var factory = new Mock<IHttpClientFactory>();
         factory.Setup(f => f.CreateClient(It.IsAny<string>())).Returns(client);
@@ -99,11 +135,17 @@ public class UxConsumersTests
             services.AddSingleton(factory.Object);
         });
 
-        await harness.Bus.Publish(new ImageUploadedCmd(Guid.NewGuid(), "url", "+234"));
+        await harness.Bus.Publish(new ImageUploadedCmd(Guid.NewGuid(), "http://fake-url", "+234"));
 
+        // Ensure message was consumed
+        Assert.True(await harness.Consumed.Any<ImageUploadedCmd>(), "ImageUploadedCmd was not consumed");
+
+        // Assert OCR result was published
         (await harness.Published.Any<OcrResultAvailable>()).Should().BeTrue();
+
         await harness.Stop();
     }
+
 
     [Fact]
     public async Task ResolveQuickReplyCmd_Should_Publish_UserIntent_When_Found()

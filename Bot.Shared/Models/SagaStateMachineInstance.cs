@@ -41,4 +41,5 @@ public class BotState : SagaStateMachineInstance
     public DateTime? LastIntentHandledAt { get; set; } // Helps with concurrency control
     public Guid? TimeoutTokenId { get; set; } // Token for scheduling inactivity timeouts
     public Guid CorrelationId { get; set; }
+    public Guid UserId { get; set; }
 }

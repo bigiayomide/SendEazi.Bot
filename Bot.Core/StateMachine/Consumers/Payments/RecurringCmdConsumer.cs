@@ -6,20 +6,13 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Bot.Core.StateMachine.Consumers.Payments;
 
-public class RecurringCmdConsumer : IConsumer<RecurringCmd>
+public class RecurringCmdConsumer(ApplicationDbContext db) : IConsumer<RecurringCmd>
 {
-    private readonly ApplicationDbContext _db;
-
-    public RecurringCmdConsumer(ApplicationDbContext db)
-    {
-        _db = db;
-    }
-
     public async Task Consume(ConsumeContext<RecurringCmd> ctx)
     {
         var p = ctx.Message.Payload.Transfer;
 
-        var payee = await _db.Payees
+        var payee = await db.Payees
             .FirstOrDefaultAsync(x =>
                 x.UserId == ctx.Message.CorrelationId &&
                 x.AccountNumber == p.ToAccount &&
@@ -36,7 +29,7 @@ public class RecurringCmdConsumer : IConsumer<RecurringCmd>
                 Nickname = null,
                 CreatedAt = DateTime.UtcNow
             };
-            _db.Payees.Add(payee);
+            db.Payees.Add(payee);
         }
 
         var recurring = new RecurringTransfer
@@ -51,8 +44,8 @@ public class RecurringCmdConsumer : IConsumer<RecurringCmd>
             CreatedAt = DateTime.UtcNow
         };
 
-        _db.RecurringTransfers.Add(recurring);
-        await _db.SaveChangesAsync();
+        db.RecurringTransfers.Add(recurring);
+        await db.SaveChangesAsync();
 
         await ctx.Publish(new RecurringExecuted(ctx.Message.CorrelationId, recurring.Id));
     }

@@ -467,6 +467,23 @@ public class BotStateMachine : MassTransitStateMachine<BotState>
                     ctx.Saga.PendingPayloadHash = null;
                     await SetState("Ready")(ctx);
                 })
+                .TransitionTo(Ready),
+            When(BillOk)
+                .Then(ctx =>
+                {
+                    _logger.LogInformation("[BillPaid] Success received.");
+                    ResetIntentState(ctx.Saga);
+                })
+                .TransitionTo(Ready),
+            When(TxOk)
+                .ThenAsync(async ctx =>
+                {
+                    if (!ctx.Saga.PreviewPublished)
+                    {
+                        await ctx.Publish(new PreviewCmd(ctx.Saga.CorrelationId));
+                        ctx.Saga.PreviewPublished = true;
+                    }
+                })
                 .TransitionTo(Ready)
         );
 

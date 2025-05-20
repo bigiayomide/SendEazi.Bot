@@ -23,6 +23,7 @@ public class TransferFlowTests : IAsyncLifetime
     private readonly Mock<IConversationStateService> _stateSvc = new();
     private ApplicationDbContext _db = null!;
     private ITestHarness _harness = null!;
+    private IServiceScope _scope = null!;
     private ServiceProvider _provider = null!;
     private ISagaStateMachineTestHarness<BotStateMachine, BotState> _sagaHarness = null!;
 
@@ -31,6 +32,7 @@ public class TransferFlowTests : IAsyncLifetime
         var services = new ServiceCollection();
 
         services.AddInMemoryDb("transfer-flow");
+
         services.AddMassTransitTestHarness(cfg =>
         {
             cfg.AddSagaStateMachine<BotStateMachine, BotState>()
@@ -51,6 +53,7 @@ public class TransferFlowTests : IAsyncLifetime
                 .Returns("TX-REF");
             return m.Object;
         });
+
         services.AddSingleton<IBankProviderFactory>(sp =>
         {
             var mock = new Mock<IBankProviderFactory>();
@@ -59,57 +62,60 @@ public class TransferFlowTests : IAsyncLifetime
             return mock.Object;
         });
 
-        _provider = services.BuildServiceProvider(true);
+        _provider = services.BuildServiceProvider(validateScopes: true);
+        _scope = _provider.CreateScope();
 
-        _harness = _provider.GetRequiredService<ITestHarness>();
-        _sagaHarness = _provider.GetRequiredService<ISagaStateMachineTestHarness<BotStateMachine, BotState>>();
-        _db = _provider.GetRequiredService<ApplicationDbContext>();
+        var scoped = _scope.ServiceProvider;
 
-        _stateSvc.Setup(s => s.SetStateAsync(It.IsAny<Guid>(), It.IsAny<string>()))
-            .Returns(Task.CompletedTask);
-        _stateSvc.Setup(s => s.SetUserAsync(It.IsAny<Guid>(), It.IsAny<Guid>()))
-            .Returns(Task.CompletedTask);
+        _db = scoped.GetRequiredService<ApplicationDbContext>();
+        _harness = scoped.GetRequiredService<ITestHarness>();
+        _sagaHarness = scoped.GetRequiredService<ISagaStateMachineTestHarness<BotStateMachine, BotState>>();
+
+        _stateSvc.Setup(x => x.SetStateAsync(It.IsAny<Guid>(), It.IsAny<string>())).Returns(Task.CompletedTask);
+        _stateSvc.Setup(x => x.SetUserAsync(It.IsAny<Guid>(), It.IsAny<Guid>())).Returns(Task.CompletedTask);
 
         await _harness.Start();
     }
 
+
     public async Task DisposeAsync()
     {
         if (_harness != null) await _harness.Stop();
+        _scope?.Dispose();
         if (_provider is IAsyncDisposable disp) await disp.DisposeAsync();
     }
+
 
     private async Task<Guid> SeedReadyAsync(Guid userId)
     {
         await _db.SeedUserAsync(userId);
         await _db.SeedMandateAsync(userId, "mandate-1");
-        var sid = NewId.NextGuid();
 
-        await _harness.Bus.Publish(new UserIntentDetected(sid, IntentType.Signup,
+        await _harness.Bus.Publish(new UserIntentDetected(userId, IntentType.Signup,
             SignupPayload: new SignupPayload("Test", "+2348000000000", "12345678901", "12345678901")));
-        await _sagaHarness.Exists(sid, x => x.NinValidating, TimeSpan.FromSeconds(5));
+        await _sagaHarness.Exists(userId, x => x.NinValidating, TimeSpan.FromSeconds(5));
 
-        await _harness.Bus.Publish(new NinVerified(sid, "12345678901"));
-        await _sagaHarness.Exists(sid, x => x.AskBvn, TimeSpan.FromSeconds(5));
+        await _harness.Bus.Publish(new NinVerified(userId, "12345678901"));
+        await _sagaHarness.Exists(userId, x => x.AskBvn, TimeSpan.FromSeconds(5));
 
-        await _harness.Bus.Publish(new BvnProvided(sid, "12345678901"));
-        await _sagaHarness.Exists(sid, x => x.BvnValidating, TimeSpan.FromSeconds(5));
+        await _harness.Bus.Publish(new BvnProvided(userId, "12345678901"));
+        await _sagaHarness.Exists(userId, x => x.BvnValidating, TimeSpan.FromSeconds(5));
 
-        await _harness.Bus.Publish(new BvnVerified(sid, "12345678901"));
-        await _sagaHarness.Exists(sid, x => x.AwaitingKyc, TimeSpan.FromSeconds(5));
+        await _harness.Bus.Publish(new BvnVerified(userId, "12345678901"));
+        await _sagaHarness.Exists(userId, x => x.AwaitingKyc, TimeSpan.FromSeconds(5));
 
-        await _harness.Bus.Publish(new SignupSucceeded(sid, userId));
-        await _sagaHarness.Exists(sid, x => x.AwaitingBankLink, TimeSpan.FromSeconds(5));
+        await _harness.Bus.Publish(new SignupSucceeded(userId, userId));
+        await _sagaHarness.Exists(userId, x => x.AwaitingBankLink, TimeSpan.FromSeconds(5));
 
-        await _harness.Bus.Publish(new MandateReadyToDebit(sid, "mandate-1", "Mono"));
-        await _sagaHarness.Exists(sid, x => x.AwaitingPinSetup, TimeSpan.FromSeconds(5));
+        await _harness.Bus.Publish(new MandateReadyToDebit(userId, "mandate-1", "Mono"));
+        await _sagaHarness.Exists(userId, x => x.AwaitingPinSetup, TimeSpan.FromSeconds(5));
 
-        await _harness.Bus.Publish(new BankLinkSucceeded(sid));
-        await _sagaHarness.Exists(sid, x => x.AwaitingPinValidate, TimeSpan.FromSeconds(5));
+        await _harness.Bus.Publish(new BankLinkSucceeded(userId));
+        await _sagaHarness.Exists(userId, x => x.AwaitingPinValidate, TimeSpan.FromSeconds(5));
 
-        await _harness.Bus.Publish(new PinSet(sid));
-        await _sagaHarness.Exists(sid, x => x.Ready, TimeSpan.FromSeconds(5));
-        return sid;
+        await _harness.Bus.Publish(new PinSet(userId));
+        await _sagaHarness.Exists(userId, x => x.Ready, TimeSpan.FromSeconds(5));
+        return userId;
     }
 
     [Fact]
@@ -124,22 +130,32 @@ public class TransferFlowTests : IAsyncLifetime
 
         await _harness.Bus.Publish(new PinValidated(sid));
         await _sagaHarness.Exists(sid, x => x.Ready, TimeSpan.FromSeconds(5));
+        await _harness.InactivityTask;
+        // Confirm command was published and consumed
+        Assert.True(await _harness.Published.Any<TransferCmd>(x => x.Context.Message.CorrelationId == sid));
 
-        var cmd = _harness.Published.Select<TransferCmd>()
-            .FirstOrDefault(x => x.Context.Message.CorrelationId == sid);
-        Assert.NotNull(cmd);
-
+        // The transaction is created by TransferCmdConsumer
         var tx = await _db.Transactions.FirstOrDefaultAsync(t => t.Reference == "TX-REF");
         Assert.NotNull(tx);
         Assert.Equal(TransactionStatus.Pending, tx!.Status);
 
+        // Now simulate the webhook
         await _harness.Bus.Publish(new TransferCompleted(sid, "TX-REF"));
         await _harness.InactivityTask;
+        
+        // Confirm webhook handler processed it
+        Assert.True(await _harness.Consumed.Any<TransferCompleted>(x => x.Context.Message.CorrelationId ==sid));
 
-        tx = await _db.Transactions.FirstAsync(t => t.Reference == "TX-REF");
-        Assert.Equal(TransactionStatus.Success, tx.Status);
+        // Reload transaction
+        tx = await _db.Transactions.FirstOrDefaultAsync(t => t.Reference == "TX-REF");
+        Assert.NotNull(tx);
+        Assert.Equal(TransactionStatus.Success, tx!.Status);
+        Assert.NotNull(tx.CompletedAt);
+
+        // Ensure PreviewCmd was published
         Assert.True(await _harness.Published.Any<PreviewCmd>(x => x.Context.Message.CorrelationId == sid));
     }
+
 
     [Fact]
     public async Task Should_Handle_Transfer_Failure()

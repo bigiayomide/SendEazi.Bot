@@ -22,6 +22,8 @@ public class ServiceCollectionExtensionsTests
                 ["FormRecognizer:Endpoint"] = "https://example.com",
                 ["FormRecognizer:ApiKey"] = "key",
                 ["Transcription:Region"] = "eastus",
+                ["TextToSpeech:SubscriptionKey"] = "valid-subscription-key",
+                ["TextToSpeech:Region"] = "valid-subscription-key",
                 ["Transcription:SubscriptionKey"] = "key",
                 ["Schedules:RecurringTransfer"] = "* * * * *"
             })

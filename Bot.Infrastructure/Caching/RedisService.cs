@@ -2,18 +2,13 @@ using StackExchange.Redis;
 
 namespace Bot.Infrastructure.Caching;
 
-public class RedisService
+public class RedisService(IConnectionMultiplexer connection)
 {
-    private readonly IDatabase _db;
+    private readonly IDatabase _db = connection.GetDatabase();
 
     public RedisService(RedisConfiguration config)
         : this(ConnectionMultiplexer.Connect(config.ConnectionString))
     {
-    }
-
-    public RedisService(IConnectionMultiplexer connection)
-    {
-        _db = connection.GetDatabase();
     }
 
     public async Task SetAsync(string key, string value, TimeSpan? expiry = null)

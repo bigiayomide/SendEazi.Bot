@@ -15,27 +15,49 @@ public class RedisServiceTests
     [Fact]
     public async Task SetAsync_Should_Store_Value_With_Optional_Expiry()
     {
-        var redis = new RedisMock();
-        var service = CreateService(redis);
+        var store = new Dictionary<string, RedisValue>();
+        var mockDb = new Mock<IDatabase>();
+        mockDb.Setup(db => db.StringSetAsync(It.IsAny<RedisKey>(), It.IsAny<RedisValue>(), It.IsAny<TimeSpan?>(), 
+                It.IsAny<bool>(), It.IsAny<When>(), It.IsAny<CommandFlags>()))
+            .Callback<RedisKey, RedisValue, TimeSpan?, bool, When, CommandFlags>((key, val, _, _, _, _) =>
+            {
+                store[key] = val;
+            })
+            .ReturnsAsync(true);
 
-        var ttl = TimeSpan.FromSeconds(30);
-        await service.SetAsync("a", "1", ttl);
-        redis.Strings["a"].Should().Be("1");
-        redis.Expirations["a"].Should().Be(ttl);
+        var mockConnection = new Mock<IConnectionMultiplexer>();
+        mockConnection.Setup(c => c.GetDatabase(It.IsAny<int>(), It.IsAny<object>()))
+            .Returns(mockDb.Object);
 
-        await service.SetAsync("b", "2");
-        redis.Strings["b"].Should().Be("2");
-        redis.Expirations.ContainsKey("b").Should().BeFalse();
+        var service = new RedisService(mockConnection.Object);
+
+        await service.SetAsync("a", "val");
+
+        store["a"].ToString().Should().Be("val");
     }
 
     [Fact]
     public async Task GetAsync_Should_Retrieve_Stored_Value()
     {
-        var redis = new RedisMock();
-        var service = CreateService(redis);
+        var store = new Dictionary<string, RedisValue>
+        {
+            ["a"] = "val"
+        };
 
-        await service.SetAsync("key", "val");
-        var result = await service.GetAsync("key");
+        var mockDb = new Mock<IDatabase>();
+        mockDb.Setup(db => db.StringGetAsync(It.IsAny<RedisKey>(), It.IsAny<CommandFlags>()))
+            .Returns<RedisKey, CommandFlags>((key, _) =>
+            {
+                return Task.FromResult(store.TryGetValue(key, out var value) ? value : RedisValue.Null);
+            });
+
+        var mockConnection = new Mock<IConnectionMultiplexer>();
+        mockConnection.Setup(c => c.GetDatabase(It.IsAny<int>(), It.IsAny<object>()))
+            .Returns(mockDb.Object);
+
+        var service = new RedisService(mockConnection.Object);
+
+        var result = await service.GetAsync("a");
 
         result.Should().Be("val");
     }

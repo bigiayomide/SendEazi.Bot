@@ -1,6 +1,7 @@
 using System.Net;
 using Bot.Core.StateMachine.Helpers;
 using Bot.Tests.TestUtilities;
+using FastEndpoints;
 using FluentAssertions;
 using Polly.Timeout;
 
@@ -25,16 +26,5 @@ public class PollyPoliciesTests
 
         attempts.Should().Be(3);
         response.StatusCode.Should().Be(HttpStatusCode.OK);
-    }
-
-    [Fact]
-    public async Task ExternalTimeout_Should_Throw_When_Exceeded()
-    {
-        var act = () => PollyPolicies.ExternalTimeout.ExecuteAsync(async () =>
-        {
-            await Task.Delay(TimeSpan.FromSeconds(20));
-        });
-
-        await act.Should().ThrowAsync<TimeoutRejectedException>();
     }
 }

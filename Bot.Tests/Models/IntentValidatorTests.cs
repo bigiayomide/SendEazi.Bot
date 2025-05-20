@@ -98,8 +98,8 @@ public class IntentValidatorTests
         var result = IntentValidator.ValidateBill(payload);
 
         result.IsValid.Should().BeFalse();
-        result.Errors.Should().Contain("\uD83D\uDCF1 Please specify the biller code.")
-            .And.Contain("\uD83D\uDD17 Please enter your customer reference number.")
+        result.Errors.Should().Contain("📡 Please specify the biller code.")
+            .And.Contain("🔢 Please enter your customer reference number.")
             .And.Contain("\uD83D\uDCB0 Please enter a valid amount to pay.");
     }
 
@@ -210,7 +210,7 @@ public class IntentValidatorTests
 
         result.IsValid.Should().BeFalse();
         result.Errors.Should().ContainSingle()
-            .Which.Should().Be("\u2757 Unknown intent provided.");
+            .Which.Should().Be("❓ I'm not sure what you want to do. Please say something like 'check my balance' or 'send ₦5,000 to John.'");
     }
 
     [Fact]

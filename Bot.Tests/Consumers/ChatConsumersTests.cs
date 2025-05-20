@@ -146,17 +146,52 @@ public class ChatConsumersTests
         var acc2 = Guid.NewGuid();
 
         var harness = await TestContextHelper.BuildTestHarness<SetDefaultBankAccountCmdConsumer>();
-        var db = harness.Scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-        await db.LinkedBankAccounts.AddAsync(new LinkedBankAccount { Id = acc1, UserId = userId, IsDefault = false });
-        await db.LinkedBankAccounts.AddAsync(new LinkedBankAccount { Id = acc2, UserId = userId, IsDefault = true });
+
+        using var scope = harness.Scope.ServiceProvider.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+
+        // Seed data using the same DbContext the consumer will use
+        await db.LinkedBankAccounts.AddAsync(new LinkedBankAccount
+        {
+            Id = acc1,
+            UserId = userId,
+            IsDefault = false,
+            AccountHash = "hash1",
+            AccountName = "User One",
+            BankCode = "001",
+            Provider = "MockProvider",
+            AccountNumberEnc = "enc1"
+        });
+
+        await db.LinkedBankAccounts.AddAsync(new LinkedBankAccount
+        {
+            Id = acc2,
+            UserId = userId,
+            IsDefault = true,
+            AccountHash = "hash2",
+            AccountName = "User Two",
+            BankCode = "001",
+            Provider = "MockProvider",
+            AccountNumberEnc = "enc2"
+        });
+
         await db.SaveChangesAsync();
 
         await harness.Bus.Publish(new SetDefaultBankAccountCmd(userId, acc1));
 
-        (await db.LinkedBankAccounts.FindAsync(acc1)).IsDefault.Should().BeTrue();
-        (await db.LinkedBankAccounts.FindAsync(acc2)).IsDefault.Should().BeFalse();
+        // ✅ Wait until the consumer has actually processed the message
+        Assert.True(await harness.Consumed.Any<SetDefaultBankAccountCmd>(), "Message was not consumed");
+
+        // Use a fresh scope to requery from DB
+        using var checkScope = harness.Scope.ServiceProvider.CreateScope();
+        var checkDb = checkScope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+
+        (await checkDb.LinkedBankAccounts.FindAsync(acc1))!.IsDefault.Should().BeTrue();
+        (await checkDb.LinkedBankAccounts.FindAsync(acc2))!.IsDefault.Should().BeFalse();
+
         await harness.Stop();
     }
+
 
     [Fact]
     public async Task SignupCmd_Should_Publish_Success()

@@ -67,23 +67,27 @@ public class BankProviderFactoryTests
     public async Task Returns_Mono_Provider_For_Default_Account()
     {
         var userId = Guid.NewGuid();
-        using var provider = BuildServices("mono-default");
-        var db = provider.GetRequiredService<ApplicationDbContext>();
+        await using var provider = BuildServices("mono-default");
+        using var scope = provider.CreateScope();
+
+        var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
         db.LinkedBankAccounts.Add(CreateAccount(userId, "Mono", true));
         await db.SaveChangesAsync();
 
-        var factory = new BankProviderFactory(provider, db);
+        var factory = new BankProviderFactory(scope.ServiceProvider, db);
         var result = await factory.GetProviderAsync(userId);
 
-        result.Should().BeSameAs(provider.GetRequiredService<MonoBankProvider>());
+        result.Should().BeSameAs(scope.ServiceProvider.GetRequiredService<MonoBankProvider>());
     }
+
 
     [Fact]
     public async Task Returns_Selected_Account_Provider()
     {
         var userId = Guid.NewGuid();
-        using var provider = BuildServices("onepipe-selected");
-        var db = provider.GetRequiredService<ApplicationDbContext>();
+        await using var provider = BuildServices("onepipe-selected");
+        using var scope = provider.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
         var account = CreateAccount(userId, "OnePipe");
         db.LinkedBankAccounts.Add(account);
         await db.SaveChangesAsync();
@@ -97,8 +101,9 @@ public class BankProviderFactoryTests
     [Fact]
     public async Task Throws_When_No_Account_Found()
     {
-        using var provider = BuildServices("no-account");
-        var db = provider.GetRequiredService<ApplicationDbContext>();
+        await using var provider = BuildServices("no-account");
+        using var scope = provider.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
         var factory = new BankProviderFactory(provider, db);
 
         var act = async () => await factory.GetProviderAsync(Guid.NewGuid());
@@ -110,8 +115,9 @@ public class BankProviderFactoryTests
     public async Task Throws_When_Provider_Unsupported()
     {
         var userId = Guid.NewGuid();
-        using var provider = BuildServices("unsupported");
-        var db = provider.GetRequiredService<ApplicationDbContext>();
+        await using var provider = BuildServices("unsupported");
+        using var scope = provider.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
         db.LinkedBankAccounts.Add(CreateAccount(userId, "Bad", true));
         await db.SaveChangesAsync();
 

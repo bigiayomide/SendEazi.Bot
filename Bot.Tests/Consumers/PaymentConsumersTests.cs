@@ -96,31 +96,62 @@ public class PaymentConsumersTests
         var recId = Guid.NewGuid();
 
         var harness = await TestContextHelper.BuildTestHarness<RecurringCancelCmdConsumer>();
-        var db = harness.Scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-        await db.RecurringTransfers.AddAsync(new RecurringTransfer { Id = recId, UserId = userId, IsActive = true });
-        await db.SaveChangesAsync();
+
+        // Create a scoped db context for seeding
+        using var seedScope = harness.Scope.ServiceProvider.CreateScope();
+        var seedDb = seedScope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+
+        await seedDb.RecurringTransfers.AddAsync(new RecurringTransfer
+        {
+            Id = recId,
+            UserId = userId,
+            IsActive = true,
+            CronExpression = "0 */5 * * * ?",
+            CreatedAt = DateTime.UtcNow,
+            NextRun = DateTime.UtcNow.AddMinutes(5)
+        });
+
+        await seedDb.SaveChangesAsync();
 
         await harness.Bus.Publish(new RecurringCancelCmd(userId, recId));
 
+        // ✅ Ensure the message was consumed
+        Assert.True(await harness.Consumed.Any<RecurringCancelCmd>(), "Message was not consumed");
+
+        // 🔁 Use fresh scope to verify update
+        using var verifyScope = harness.Scope.ServiceProvider.CreateScope();
+        var verifyDb = verifyScope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+
+        (await verifyDb.RecurringTransfers.FindAsync(recId))!.IsActive.Should().BeFalse();
         (await harness.Published.Any<RecurringCancelled>()).Should().BeTrue();
-        (await db.RecurringTransfers.FindAsync(recId)).IsActive.Should().BeFalse();
+
         await harness.Stop();
     }
 
-    // [Fact]
-    // public async Task RewardCmd_Should_Call_Service_And_Publish()
-    // {
-    //     var userId = Guid.NewGuid();
-    //     var svc = new Mock<IRewardService>();
-    //     var harness = await TestContextHelper.BuildTestHarness<RewardCmdConsumer>(services =>
-    //     {
-    //         services.AddSingleton(svc.Object);
-    //     });
-    //
-    //     await harness.Bus.Publish(new RewardCmd(userId, RewardType.Signup));
-    //
-    //     svc.Verify(s => s.GrantAsync(userId, RewardType.Signup), Times.Once);
-    //     (await harness.Published.Any<RewardIssued>()).Should().BeTrue();
-    //     await harness.Stop();
-    // }
+
+    [Fact]
+    public async Task RewardCmd_Should_Call_Service_And_Publish()
+    {
+        var userId = Guid.NewGuid();
+        var rewardServiceMock = new Mock<IRewardService>();
+
+        var harness = await TestContextHelper.BuildTestHarness<RewardCmdConsumer>(services =>
+        {
+            services.AddSingleton(rewardServiceMock.Object);
+        });
+
+        await harness.Bus.Publish(new RewardCmd(userId, RewardTypeEnum.Signup));
+
+        // ✅ Ensure the consumer actually handled the message
+        Assert.True(await harness.Consumed.Any<RewardCmd>(), "RewardCmd was not consumed");
+
+        // ✅ Verify service call
+        rewardServiceMock.Verify(s => s.GrantAsync(userId, RewardTypeEnum.Signup), Times.Once);
+
+        // ✅ Ensure event was published
+        (await harness.Published.Any<RewardIssued>()).Should().BeTrue();
+
+        await harness.Stop();
+    }
+
 }

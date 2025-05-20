@@ -23,7 +23,8 @@ public enum RewardTypeEnum
     Cashback,
     Streak,
     RecurringStreak,
-    GoalAchieved
+    GoalAchieved,
+    Signup
 }
 
 public enum PersonalityEnum

@@ -12,6 +12,6 @@ public static class PollyPolicies
             .WaitAndRetryAsync(3,
                 attempt => TimeSpan.FromSeconds(Math.Pow(2, attempt)));
 
-    public static readonly IAsyncPolicy ExternalTimeout =
+    public static readonly IAsyncPolicy TimeoutWithToken =
         Policy.TimeoutAsync(TimeSpan.FromSeconds(10), TimeoutStrategy.Optimistic);
 }

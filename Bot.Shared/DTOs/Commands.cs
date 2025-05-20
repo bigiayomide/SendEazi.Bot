@@ -21,7 +21,6 @@ public record PinValidationCmd(Guid CorrelationId, string Pin);
 public record TransferCmd(Guid CorrelationId, TransferPayload Payload, string Reference, Guid? BankAccountId = null);
 
 public record BillPayCmd(Guid CorrelationId, BillPayload Payload);
-
 public record BalanceCmd(Guid CorrelationId);
 
 // goals / recurring

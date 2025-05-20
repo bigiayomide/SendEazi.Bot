@@ -51,30 +51,23 @@ public class DefaultSpeechSynthesizerFactory : ISpeechSynthesizerFactory
         return new SpeechSynthesizerWrapper(new MsSpeechSynthesizerWrapper(new SpeechSynthesizer(config, null)));
     }
 
-    private class MsSpeechSynthesizerWrapper : ISpeechSynthesizer
+    private class MsSpeechSynthesizerWrapper(SpeechSynthesizer synthesizer) : ISpeechSynthesizer
     {
-        private readonly SpeechSynthesizer _synthesizer;
-
-        public MsSpeechSynthesizerWrapper(SpeechSynthesizer synthesizer)
-        {
-            _synthesizer = synthesizer;
-        }
-
         public async Task<SynthesisResult> SpeakTextAsync(string text)
         {
-            var result = await _synthesizer.SpeakTextAsync(text);
+            var result = await synthesizer.SpeakTextAsync(text);
             return new SynthesisResult(result.Reason, result.AudioData);
         }
 
         public async Task<IReadOnlyList<VoiceInfo>> GetVoicesAsync()
         {
-            var result = await _synthesizer.GetVoicesAsync();
+            var result = await synthesizer.GetVoicesAsync();
             return result.Voices;
         }
 
         public ValueTask DisposeAsync()
         {
-            _synthesizer.Dispose();
+            synthesizer.Dispose();
             return ValueTask.CompletedTask;
         }
     }

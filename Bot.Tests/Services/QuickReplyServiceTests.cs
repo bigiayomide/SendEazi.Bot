@@ -107,7 +107,7 @@ public class QuickReplyServiceTests
 
         var results = await service.GetQuickRepliesAsync(userId, 4);
 
-        results.Should().ContainInOrder("Beta", "Check balance", "Send money", "Recent transactions");
+        results.Should().ContainInOrder("Beta", "Check balance", "Send money", "Help");
     }
 
     [Fact]

@@ -24,6 +24,7 @@ public class RecurringFlowTests : IAsyncLifetime
     private ApplicationDbContext _db = null!;
     private ITestHarness _harness = null!;
     private ServiceProvider _provider = null!;
+    private IServiceScope _scope = null!;
     private ISagaStateMachineTestHarness<BotStateMachine, BotState> _sagaHarness = null!;
 
     public async Task InitializeAsync()
@@ -31,6 +32,7 @@ public class RecurringFlowTests : IAsyncLifetime
         var services = new ServiceCollection();
 
         services.AddInMemoryDb("recurring-flow");
+
         services.AddMassTransitTestHarness(cfg =>
         {
             cfg.AddSagaStateMachine<BotStateMachine, BotState>()
@@ -50,6 +52,7 @@ public class RecurringFlowTests : IAsyncLifetime
                 .Returns("REC-REF");
             return m.Object;
         });
+
         services.AddSingleton<IBankProviderFactory>(sp =>
         {
             var mock = new Mock<IBankProviderFactory>();
@@ -58,16 +61,20 @@ public class RecurringFlowTests : IAsyncLifetime
             return mock.Object;
         });
 
-        _provider = services.BuildServiceProvider(true);
-        _harness = _provider.GetRequiredService<ITestHarness>();
-        _sagaHarness = _provider.GetRequiredService<ISagaStateMachineTestHarness<BotStateMachine, BotState>>();
-        _db = _provider.GetRequiredService<ApplicationDbContext>();
+        _provider = services.BuildServiceProvider(validateScopes: true);
+        _scope = _provider.CreateScope();
+
+        var scoped = _scope.ServiceProvider;
+        _db = scoped.GetRequiredService<ApplicationDbContext>();
+        _harness = scoped.GetRequiredService<ITestHarness>();
+        _sagaHarness = scoped.GetRequiredService<ISagaStateMachineTestHarness<BotStateMachine, BotState>>();
 
         _stateSvc.Setup(x => x.SetStateAsync(It.IsAny<Guid>(), It.IsAny<string>())).Returns(Task.CompletedTask);
         _stateSvc.Setup(x => x.SetUserAsync(It.IsAny<Guid>(), It.IsAny<Guid>())).Returns(Task.CompletedTask);
 
         await _harness.Start();
     }
+
 
     public async Task DisposeAsync()
     {
@@ -79,33 +86,32 @@ public class RecurringFlowTests : IAsyncLifetime
     {
         await _db.SeedUserAsync(userId);
         await _db.SeedMandateAsync(userId);
-        var sid = NewId.NextGuid();
 
-        await _harness.Bus.Publish(new UserIntentDetected(sid, IntentType.Signup,
+        await _harness.Bus.Publish(new UserIntentDetected(userId, IntentType.Signup,
             SignupPayload: new SignupPayload("User", "+2348000000000", "12345678901", "12345678901")));
-        await _sagaHarness.Exists(sid, x => x.NinValidating, TimeSpan.FromSeconds(5));
+        await _sagaHarness.Exists(userId, x => x.NinValidating, TimeSpan.FromSeconds(5));
 
-        await _harness.Bus.Publish(new NinVerified(sid, "12345678901"));
-        await _sagaHarness.Exists(sid, x => x.AskBvn, TimeSpan.FromSeconds(5));
+        await _harness.Bus.Publish(new NinVerified(userId, "12345678901"));
+        await _sagaHarness.Exists(userId, x => x.AskBvn, TimeSpan.FromSeconds(5));
 
-        await _harness.Bus.Publish(new BvnProvided(sid, "12345678901"));
-        await _sagaHarness.Exists(sid, x => x.BvnValidating, TimeSpan.FromSeconds(5));
+        await _harness.Bus.Publish(new BvnProvided(userId, "12345678901"));
+        await _sagaHarness.Exists(userId, x => x.BvnValidating, TimeSpan.FromSeconds(5));
 
-        await _harness.Bus.Publish(new BvnVerified(sid, "12345678901"));
-        await _sagaHarness.Exists(sid, x => x.AwaitingKyc, TimeSpan.FromSeconds(5));
+        await _harness.Bus.Publish(new BvnVerified(userId, "12345678901"));
+        await _sagaHarness.Exists(userId, x => x.AwaitingKyc, TimeSpan.FromSeconds(5));
 
-        await _harness.Bus.Publish(new SignupSucceeded(sid, userId));
-        await _sagaHarness.Exists(sid, x => x.AwaitingBankLink, TimeSpan.FromSeconds(5));
+        await _harness.Bus.Publish(new SignupSucceeded(userId, userId));
+        await _sagaHarness.Exists(userId, x => x.AwaitingBankLink, TimeSpan.FromSeconds(5));
 
-        await _harness.Bus.Publish(new MandateReadyToDebit(sid, "mandate", "Mono"));
-        await _sagaHarness.Exists(sid, x => x.AwaitingPinSetup, TimeSpan.FromSeconds(5));
+        await _harness.Bus.Publish(new MandateReadyToDebit(userId, "mandate", "Mono"));
+        await _sagaHarness.Exists(userId, x => x.AwaitingPinSetup, TimeSpan.FromSeconds(5));
 
-        await _harness.Bus.Publish(new BankLinkSucceeded(sid));
-        await _sagaHarness.Exists(sid, x => x.AwaitingPinValidate, TimeSpan.FromSeconds(5));
+        await _harness.Bus.Publish(new BankLinkSucceeded(userId));
+        await _sagaHarness.Exists(userId, x => x.AwaitingPinValidate, TimeSpan.FromSeconds(5));
 
-        await _harness.Bus.Publish(new PinSet(sid));
-        await _sagaHarness.Exists(sid, x => x.Ready, TimeSpan.FromSeconds(5));
-        return sid;
+        await _harness.Bus.Publish(new PinSet(userId));
+        await _sagaHarness.Exists(userId, x => x.Ready, TimeSpan.FromSeconds(5));
+        return userId;
     }
 
     [Fact]
@@ -115,6 +121,7 @@ public class RecurringFlowTests : IAsyncLifetime
         var sid = await SeedReadyAsync(userId);
 
         var transfer = new TransferPayload("2222", "999", 100, "Recurring");
+
         var saga = _sagaHarness.Sagas.Contains(sid);
         saga.PendingIntentType = IntentType.Transfer;
         saga.PendingIntentPayload =
@@ -122,14 +129,22 @@ public class RecurringFlowTests : IAsyncLifetime
 
         await _harness.Bus.Publish(new RecurringCmd(sid,
             new RecurringPayload(Guid.NewGuid(), transfer, "* * * * *")));
-
+        
         await _harness.InactivityTask;
 
-        Assert.True(await _harness.Published.Any<RecurringExecuted>(x => x.Context.Message.CorrelationId == sid));
+        // ✅ Confirm consumer executed
+        Assert.True(await _harness.Consumed.Any<RecurringCmd>(), "RecurringCmd was not consumed");
+
+        // ✅ Confirm expected message was published
+        Assert.True(await _harness.Published.Any<RecurringExecuted>(x => x.Context.Message.CorrelationId == sid),
+            $"RecurringExecuted with CorrelationId {sid} was not published");
+
         Assert.True(await _harness.Published.Any<TransferCmd>(x => x.Context.Message.CorrelationId == sid));
+
         Assert.Single(_db.RecurringTransfers);
         Assert.Single(_db.Payees);
     }
+
 
     [Fact]
     public async Task Should_Handle_Recurring_Failure()

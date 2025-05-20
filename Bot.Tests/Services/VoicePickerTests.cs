@@ -1,3 +1,4 @@
+using System.Runtime.CompilerServices;
 using System.Runtime.Serialization;
 using Bot.Core.Services;
 using FluentAssertions;
@@ -10,7 +11,7 @@ public class VoicePickerTests
     private static VoiceInfo CreateVoice(string locale, string shortName)
     {
         var type = typeof(VoiceInfo);
-        var obj = (VoiceInfo)FormatterServices.GetUninitializedObject(type);
+        var obj = (VoiceInfo)RuntimeHelpers.GetUninitializedObject(type);
         type.GetProperty("Locale")?.SetValue(obj, locale);
         type.GetProperty("ShortName")?.SetValue(obj, shortName);
         return obj;
