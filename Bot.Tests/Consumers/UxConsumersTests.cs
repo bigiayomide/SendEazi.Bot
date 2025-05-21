@@ -5,6 +5,7 @@ using Bot.Infrastructure.Data;
 using Bot.Shared;
 using Bot.Shared.DTOs;
 using Bot.Shared.Models;
+using Bot.Shared.Enums;
 using Bot.Tests.TestUtilities;
 using FluentAssertions;
 using MassTransit.Testing;
