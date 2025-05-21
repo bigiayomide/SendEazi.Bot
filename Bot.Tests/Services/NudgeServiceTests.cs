@@ -2,6 +2,7 @@ using Bot.Core.Services;
 using Bot.Infrastructure.Data;
 using Bot.Shared;
 using Bot.Shared.Models;
+using Bot.Shared.Enums;
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 
