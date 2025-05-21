@@ -124,7 +124,7 @@ public class ChatConsumersTests
             { SessionId = Guid.NewGuid(), UserId = Guid.NewGuid(), PhoneNumber = "+234" };
         sessionSvc.Setup(s => s.GetOrCreateSessionAsync("+234"))
             .ReturnsAsync(session);
-        sessionSvc.Setup(s => s.GetStateAsync(session.SessionId)).ReturnsAsync("AskFullName");
+        sessionSvc.Setup(s => s.GetStateAsync(session.SessionId)).ReturnsAsync(ConversationState.AskFullName);
 
         var harness = await TestContextHelper.BuildTestHarness<RawInboundMsgCmdConsumer>(services =>
         {

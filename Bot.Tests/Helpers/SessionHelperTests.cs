@@ -1,5 +1,6 @@
 using Bot.Core.Services;
 using Bot.Core.StateMachine.Helpers;
+using Bot.Shared.Enums;
 using FluentAssertions;
 using Moq;
 
@@ -13,9 +14,9 @@ public class SessionHelperTests
         var svc = new Mock<IConversationStateService>(MockBehavior.Strict);
         var id = Guid.NewGuid();
 
-        svc.Setup(s => s.SetStateAsync(id, "Ready")).Returns(Task.CompletedTask).Verifiable();
+        svc.Setup(s => s.SetStateAsync(id, ConversationState.Ready)).Returns(Task.CompletedTask).Verifiable();
 
-        await svc.Object.SetSessionState(id, "Ready");
+        await svc.Object.SetSessionState(id, ConversationState.Ready);
 
         svc.Verify();
     }
@@ -25,11 +26,11 @@ public class SessionHelperTests
     {
         var svc = new Mock<IConversationStateService>(MockBehavior.Strict);
         var id = Guid.NewGuid();
-        svc.Setup(s => s.GetStateAsync(id)).ReturnsAsync("Ready").Verifiable();
+        svc.Setup(s => s.GetStateAsync(id)).ReturnsAsync(ConversationState.Ready).Verifiable();
 
         var state = await svc.Object.GetSessionState(id);
 
-        state.Should().Be("Ready");
+        state.Should().Be(ConversationState.Ready);
         svc.Verify();
     }
 }
