@@ -37,7 +37,7 @@ public class OnboardingFlowTests : IAsyncLifetime
         _harness = _provider.GetRequiredService<ITestHarness>();
         _sagaHarness = _provider.GetRequiredService<ISagaStateMachineTestHarness<BotStateMachine, BotState>>();
 
-        _stateSvc.Setup(x => x.SetStateAsync(It.IsAny<Guid>(), It.IsAny<string>())).Returns(Task.CompletedTask);
+        _stateSvc.Setup(x => x.SetStateAsync(It.IsAny<Guid>(), It.IsAny<ConversationState>())).Returns(Task.CompletedTask);
         _stateSvc.Setup(x => x.SetUserAsync(It.IsAny<Guid>(), It.IsAny<Guid>())).Returns(Task.CompletedTask);
 
         await _harness.Start();

@@ -1,5 +1,6 @@
 using Bot.Core.Services;
 using Bot.Shared.DTOs;
+using Bot.Shared.Enums;
 using MassTransit;
 using Microsoft.Extensions.Logging;
 
@@ -17,16 +18,16 @@ public class RawInboundMsgCmdConsumer(IConversationStateService session, ILogger
 
         switch (state)
         {
-            case "AskFullName":
+            case ConversationState.AskFullName:
                 await ctx.Publish(new FullNameProvided(correlationId, text));
                 break;
-            case "AskNin":
+            case ConversationState.AskNin:
                 await ctx.Publish(new NinProvided(correlationId, text));
                 break;
-            case "AskBvn":
+            case ConversationState.AskBvn:
                 await ctx.Publish(new BvnProvided(correlationId, text));
                 break;
-            case "AwaitingPinSetup":
+            case ConversationState.AwaitingPinSetup:
                 await ctx.Publish(new PinSetupCmd(correlationId, text, ctx.Message.MessageId));
                 break;
             default:

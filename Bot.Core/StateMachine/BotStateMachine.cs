@@ -165,13 +165,13 @@ public class BotStateMachine : MassTransitStateMachine<BotState>
 
                     // Start validating the NIN
                     await ctx.Publish(new ValidateNinCmd(ctx.Saga.CorrelationId, payload.NIN));
-                    await SetState("NinValidating")(ctx);
+                    await SetState(ConversationState.NinValidating)(ctx);
                 })
                 .TransitionTo(NinValidating),
 
             // If user says signup, but no signup payload:
             When(IntentEvt, ctx => ctx.Message.Intent == IntentType.Signup && ctx.Message.SignupPayload == null)
-                .ThenAsync(SetState("AskFullName"))
+                .ThenAsync(SetState(ConversationState.AskFullName))
                 .PublishAsync(ctx => Task.FromResult(new PromptFullNameCmd(ctx.Saga.CorrelationId)))
                 .TransitionTo(AskFullName),
 
@@ -182,7 +182,7 @@ public class BotStateMachine : MassTransitStateMachine<BotState>
                     await ctx.Publish(new NudgeCmd(ctx.Saga.CorrelationId, NudgeType.SignupRequired,
                         ctx.Saga.PhoneNumber, "📝 Please sign up before making transactions."));
                 })
-                .ThenAsync(SetState("AskFullName"))
+                .ThenAsync(SetState(ConversationState.AskFullName))
                 .PublishAsync(ctx => Task.FromResult(new PromptFullNameCmd(ctx.Saga.CorrelationId)))
                 .TransitionTo(AskFullName),
 
@@ -225,7 +225,7 @@ public class BotStateMachine : MassTransitStateMachine<BotState>
                         ctx.Message.FullName, ctx.Saga.CorrelationId);
                     ctx.Saga.TempName = ctx.Message.FullName;
                 })
-                .ThenAsync(SetState("AskNin"))
+                .ThenAsync(SetState(ConversationState.AskNin))
                 .PublishAsync(ctx => Task.FromResult(new PromptNinCmd(ctx.Saga.CorrelationId)))
                 .TransitionTo(AskNin),
             When(TimeoutSchedule.Received)
@@ -253,7 +253,7 @@ public class BotStateMachine : MassTransitStateMachine<BotState>
                         ctx.Message.NIN, ctx.Saga.CorrelationId);
                     ctx.Saga.TempNIN = ctx.Message.NIN;
                 })
-                .ThenAsync(SetState("NinValidating"))
+                .ThenAsync(SetState(ConversationState.NinValidating))
                 .PublishAsync(ctx => Task.FromResult(new ValidateNinCmd(ctx.Saga.CorrelationId, ctx.Message.NIN)))
                 .TransitionTo(NinValidating),
             When(TimeoutSchedule.Received)
@@ -270,7 +270,7 @@ public class BotStateMachine : MassTransitStateMachine<BotState>
         // NinValidating
         During(NinValidating,
             When(NinOk)
-                .ThenAsync(SetState("AskBvn"))
+                .ThenAsync(SetState(ConversationState.AskBvn))
                 .PublishAsync(ctx => Task.FromResult(new PromptBvnCmd(ctx.Saga.CorrelationId)))
                 .TransitionTo(AskBvn),
             When(NinBad)
@@ -278,7 +278,7 @@ public class BotStateMachine : MassTransitStateMachine<BotState>
                 {
                     _logger.LogWarning("[NinValidating] NIN validation failed for CorrelationId: {Id}",
                         ctx.Saga.CorrelationId);
-                    await SetState("AskNin")(ctx);
+                    await SetState(ConversationState.AskNin)(ctx);
                     await ctx.Publish(new NudgeCmd(ctx.Saga.CorrelationId, NudgeType.InvalidNin,
                         ctx.Saga.PhoneNumber, "❌ That NIN didn’t validate. Please re-enter your 11-digit NIN."));
                 })
@@ -298,7 +298,7 @@ public class BotStateMachine : MassTransitStateMachine<BotState>
                         ctx.Message.BVN, ctx.Saga.CorrelationId);
                     ctx.Saga.TempBVN = ctx.Message.BVN;
                 })
-                .ThenAsync(SetState("BvnValidating"))
+                .ThenAsync(SetState(ConversationState.BvnValidating))
                 .PublishAsync(ctx => Task.FromResult(new ValidateBvnCmd(ctx.Saga.CorrelationId, ctx.Message.BVN)))
                 .TransitionTo(BvnValidating),
             When(TimeoutSchedule.Received)
@@ -331,7 +331,7 @@ public class BotStateMachine : MassTransitStateMachine<BotState>
                         return;
                     }
 
-                    await SetState("AwaitingKyc")(ctx);
+                    await SetState(ConversationState.AwaitingKyc)(ctx);
 
                     await ctx.Publish(new SignupCmd(
                         ctx.Saga.CorrelationId,
@@ -344,7 +344,7 @@ public class BotStateMachine : MassTransitStateMachine<BotState>
                 {
                     _logger.LogWarning("[BvnValidating] BVN validation failed for CorrelationId: {Id}",
                         ctx.Saga.CorrelationId);
-                    await SetState("AskBvn")(ctx);
+                    await SetState(ConversationState.AskBvn)(ctx);
                     await ctx.Publish(new NudgeCmd(ctx.Saga.CorrelationId, NudgeType.InvalidBvn, ctx.Saga.PhoneNumber,
                         "❌ That BVN didn’t validate. Please re-enter your 11-digit BVN."));
                 })
@@ -358,7 +358,7 @@ public class BotStateMachine : MassTransitStateMachine<BotState>
                 {
                     _logger.LogInformation("[AwaitingKyc] Signup succeeded for CorrelationId: {Id}",
                         ctx.Saga.CorrelationId);
-                    await SetState("AwaitingBankLink")(ctx);
+                    await SetState(ConversationState.AwaitingBankLink)(ctx);
 
                     // Mark the user in conversation state
                     var sp = ctx.TryGetPayload<IServiceProvider>(out var provider) ? provider : null;
@@ -391,7 +391,7 @@ public class BotStateMachine : MassTransitStateMachine<BotState>
         // AwaitingBankLink
         During(AwaitingBankLink,
             When(MandateReadyEvt)
-                .ThenAsync(SetState("AwaitingPinSetup"))
+                .ThenAsync(SetState(ConversationState.AwaitingPinSetup))
                 .TransitionTo(AwaitingPinSetup)
         );
 
@@ -403,11 +403,11 @@ public class BotStateMachine : MassTransitStateMachine<BotState>
                 {
                     _logger.LogInformation("[AwaitingPinSetup] PIN setup complete for CorrelationId: {Id}",
                         ctx.Saga.CorrelationId);
-                    await SetState("Ready")(ctx);
+                    await SetState(ConversationState.Ready)(ctx);
                 })
                 .TransitionTo(Ready),
             When(BankOk)
-                .ThenAsync(SetState("AwaitingPinSetup"))
+                .ThenAsync(SetState(ConversationState.AwaitingPinSetup))
                 .PublishAsync(ctx =>
                     Task.FromResult(new PinSetupCmd(ctx.Saga.CorrelationId, string.Empty, string.Empty)))
                 .TransitionTo(AwaitingPinSetup),
@@ -448,7 +448,7 @@ public class BotStateMachine : MassTransitStateMachine<BotState>
                         ctx.Saga.PhoneNumber!, "🔐 Please enter your PIN to proceed."));
 
                     // Switch to AwaitingPinValidate
-                    await SetState("AwaitingPinValidate")(ctx);
+                    await SetState(ConversationState.AwaitingPinValidate)(ctx);
                 })
                 .TransitionTo(AwaitingPinValidate),
 
@@ -465,7 +465,7 @@ public class BotStateMachine : MassTransitStateMachine<BotState>
 
                     ctx.Saga.PendingIntentType = null;
                     ctx.Saga.PendingPayloadHash = null;
-                    await SetState("Ready")(ctx);
+                    await SetState(ConversationState.Ready)(ctx);
                 })
                 .TransitionTo(Ready),
             When(BillOk)
@@ -688,7 +688,7 @@ public class BotStateMachine : MassTransitStateMachine<BotState>
     // ------------------------------------------------------------------------
     // HELPERS
     // ------------------------------------------------------------------------
-    private static Func<BehaviorContext<BotState>, Task> SetState(string s)
+    private static Func<BehaviorContext<BotState>, Task> SetState(ConversationState s)
     {
         return async ctx =>
         {

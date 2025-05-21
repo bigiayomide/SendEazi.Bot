@@ -4,6 +4,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Moq;
 using StackExchange.Redis;
+using Bot.Shared.Enums;
 
 namespace Bot.Tests.Services;
 
@@ -56,9 +57,9 @@ public class ConversationStateServiceTests
         redis.Expirations[sessKey].Should().Be(opts.SessionTtl);
         redis.Expirations[idxKey].Should().Be(opts.SessionTtl);
 
-        var state = "Ready";
+        var state = ConversationState.Ready;
         await service.SetStateAsync(session.SessionId, state);
-        redis.Hashes[sessKey][nameof(ConversationSession.State)].Should().Be(state);
+        redis.Hashes[sessKey][nameof(ConversationSession.State)].Should().Be(state.ToString());
         redis.Expirations[sessKey].Should().Be(opts.SessionTtl);
 
         var msg = "hi";

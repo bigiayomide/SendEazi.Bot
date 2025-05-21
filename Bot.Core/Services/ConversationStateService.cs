@@ -3,6 +3,7 @@
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using StackExchange.Redis;
+using Bot.Shared.Enums;
 
 namespace Bot.Core.Services;
 
@@ -12,8 +13,8 @@ public interface IConversationStateService
     Task<ConversationSession?> GetSessionByUserAsync(Guid userId);
     Task UpdateLastMessageAsync(Guid sessionId, string message);
     Task SetUserAsync(Guid sessionId, Guid userId);
-    Task SetStateAsync(Guid sessionId, string state);
-    Task<string> GetStateAsync(Guid sessionId);
+    Task SetStateAsync(Guid sessionId, ConversationState state);
+    Task<ConversationState> GetStateAsync(Guid sessionId);
 }
 
 public class ConversationSession
@@ -21,7 +22,7 @@ public class ConversationSession
     public Guid SessionId { get; set; }
     public Guid UserId { get; set; }
     public string PhoneNumber { get; set; } = null!;
-    public string State { get; set; } = "None";
+    public ConversationState State { get; set; } = ConversationState.None;
     public string? LastMessage { get; set; }
     public DateTime LastUpdatedUtc { get; set; }
 }
@@ -61,7 +62,7 @@ public class ConversationStateService(
             new(nameof(ConversationSession.SessionId), newId.ToString()),
             new(nameof(ConversationSession.UserId), Guid.Empty.ToString()),
             new(nameof(ConversationSession.PhoneNumber), phoneNumber),
-            new(nameof(ConversationSession.State), "None"),
+            new(nameof(ConversationSession.State), ConversationState.None.ToString()),
             new(nameof(ConversationSession.LastUpdatedUtc), now.ToString("o"))
         };
 
@@ -109,18 +110,20 @@ public class ConversationStateService(
         await TouchAsync(sessionId);
     }
 
-    public async Task SetStateAsync(Guid sessionId, string state)
+    public async Task SetStateAsync(Guid sessionId, ConversationState state)
     {
         var key = SessionKey(sessionId);
-        await _redis.HashSetAsync(key, nameof(ConversationSession.State), state);
+        await _redis.HashSetAsync(key, nameof(ConversationSession.State), state.ToString());
         await TouchAsync(sessionId);
     }
 
-    public async Task<string> GetStateAsync(Guid sessionId)
+    public async Task<ConversationState> GetStateAsync(Guid sessionId)
     {
         var key = SessionKey(sessionId);
         var state = await _redis.HashGetAsync(key, nameof(ConversationSession.State));
-        return state.IsNullOrEmpty ? "None" : state!;
+        if (state.IsNullOrEmpty)
+            return ConversationState.None;
+        return Enum.TryParse<ConversationState>(state!, out var result) ? result : ConversationState.None;
     }
 
     private string UserIndexKey(Guid userId)
@@ -141,12 +144,16 @@ public class ConversationStateService(
     private ConversationSession Map(HashEntry[] hash)
     {
         var dict = hash.ToStringDictionary();
+        var stateStr = dict[nameof(ConversationSession.State)];
+        var state = Enum.TryParse<ConversationState>(stateStr, out var parsed)
+            ? parsed
+            : ConversationState.None;
         return new ConversationSession
         {
             SessionId = Guid.Parse(dict[nameof(ConversationSession.SessionId)]),
             UserId = Guid.Parse(dict[nameof(ConversationSession.UserId)]),
             PhoneNumber = dict[nameof(ConversationSession.PhoneNumber)],
-            State = dict[nameof(ConversationSession.State)],
+            State = state,
             LastMessage = dict.GetValueOrDefault(nameof(ConversationSession.LastMessage)),
             LastUpdatedUtc = DateTime.Parse(dict[nameof(ConversationSession.LastUpdatedUtc)])
         };

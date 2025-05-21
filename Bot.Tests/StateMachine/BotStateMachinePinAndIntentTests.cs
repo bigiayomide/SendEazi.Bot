@@ -44,7 +44,7 @@ public class BotStateMachinePinAndIntentTests(ITestOutputHelper testOutputHelper
         _sagaHarness = _provider.GetRequiredService<ISagaStateMachineTestHarness<BotStateMachine, BotState>>();
 
         _stateServiceMock
-            .Setup(x => x.SetStateAsync(It.IsAny<Guid>(), It.IsAny<string>()))
+            .Setup(x => x.SetStateAsync(It.IsAny<Guid>(), It.IsAny<ConversationState>()))
             .Returns(Task.CompletedTask);
 
         _stateServiceMock
