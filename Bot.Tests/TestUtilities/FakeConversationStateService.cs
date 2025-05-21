@@ -1,4 +1,5 @@
 using Bot.Core.Services;
+using Bot.Core.Models;
 
 namespace Bot.Tests.TestUtilities;
 

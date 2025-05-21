@@ -1,4 +1,5 @@
 using Bot.Core.Services;
+using Bot.Core.Models;
 using Bot.Core.StateMachine.Consumers.Chat;
 using Bot.Infrastructure.Data;
 using Bot.Shared;

@@ -3,6 +3,7 @@
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using StackExchange.Redis;
+using Bot.Core.Models;
 
 namespace Bot.Core.Services;
 
@@ -16,21 +17,6 @@ public interface IConversationStateService
     Task<string> GetStateAsync(Guid sessionId);
 }
 
-public class ConversationSession
-{
-    public Guid SessionId { get; set; }
-    public Guid UserId { get; set; }
-    public string PhoneNumber { get; set; } = null!;
-    public string State { get; set; } = "None";
-    public string? LastMessage { get; set; }
-    public DateTime LastUpdatedUtc { get; set; }
-}
-
-public class ConversationStateOptions
-{
-    public string RedisKeyPrefix { get; set; } = "session:";
-    public TimeSpan SessionTtl { get; set; } = TimeSpan.FromHours(24);
-}
 
 public class ConversationStateService(
     IConnectionMultiplexer redis,
