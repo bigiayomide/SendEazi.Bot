@@ -1,5 +1,3 @@
-// Bot.Core.Services/ConversationStateService.cs
-
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using StackExchange.Redis;
@@ -48,7 +46,7 @@ public class ConversationStateService(
             new(nameof(ConversationSession.SessionId), newId.ToString()),
             new(nameof(ConversationSession.UserId), Guid.Empty.ToString()),
             new(nameof(ConversationSession.PhoneNumber), phoneNumber),
-            new(nameof(ConversationSession.State), ConversationState.None.ToString()),
+            new(nameof(ConversationSession.State), nameof(ConversationState.None)),
             new(nameof(ConversationSession.LastUpdatedUtc), now.ToString("o"))
         };
 
@@ -90,8 +88,8 @@ public class ConversationStateService(
     {
         var key = SessionKey(sessionId);
         var tran = _redis.CreateTransaction();
-        tran.HashSetAsync(key, nameof(ConversationSession.UserId), userId.ToString());
-        tran.StringSetAsync(UserIndexKey(userId), sessionId.ToString(), _opts.SessionTtl);
+        await tran.HashSetAsync(key, nameof(ConversationSession.UserId), userId.ToString());
+        await tran.StringSetAsync(UserIndexKey(userId), sessionId.ToString(), _opts.SessionTtl);
         await tran.ExecuteAsync();
         await TouchAsync(sessionId);
     }
