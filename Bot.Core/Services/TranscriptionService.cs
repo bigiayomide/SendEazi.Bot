@@ -1,50 +1,8 @@
 using Microsoft.CognitiveServices.Speech;
 using Microsoft.CognitiveServices.Speech.Audio;
 
+
 namespace Bot.Core.Services;
-
-public interface ITranscriptionService
-{
-    Task<(string Text, string DetectedLanguage)> TranscribeAsync(Stream audioStream, string[] languageCodes);
-}
-
-public record RecognitionResult(ResultReason Reason, string Text, string DetectedLanguage);
-
-public interface ISpeechRecognizer : IAsyncDisposable
-{
-    Task<RecognitionResult> RecognizeOnceAsync();
-}
-
-public interface ISpeechRecognizerFactory
-{
-    ISpeechRecognizer Create(SpeechConfig config, AutoDetectSourceLanguageConfig autoDetectConfig,
-        AudioConfig audioConfig);
-}
-
-public class SpeechRecognizerWrapper(SpeechRecognizer recognizer) : ISpeechRecognizer
-{
-    public async Task<RecognitionResult> RecognizeOnceAsync()
-    {
-        var result = await recognizer.RecognizeOnceAsync();
-        var lang = result.Properties.GetProperty(PropertyId.SpeechServiceConnection_AutoDetectSourceLanguageResult);
-        return new RecognitionResult(result.Reason, result.Text, lang);
-    }
-
-    public ValueTask DisposeAsync()
-    {
-        recognizer.Dispose();
-        return ValueTask.CompletedTask;
-    }
-}
-
-public class DefaultSpeechRecognizerFactory : ISpeechRecognizerFactory
-{
-    public ISpeechRecognizer Create(SpeechConfig config, AutoDetectSourceLanguageConfig autoDetectConfig,
-        AudioConfig audioConfig)
-    {
-        return new SpeechRecognizerWrapper(new SpeechRecognizer(config, autoDetectConfig, audioConfig));
-    }
-}
 
 public class TranscriptionService(string subscriptionKey, string region, ISpeechRecognizerFactory? factory = null)
     : ITranscriptionService

@@ -1,4 +1,5 @@
 using Bot.Core.Services;
+using Bot.Core.Models;
 using Bot.Shared.Enums;
 
 namespace Bot.Tests.TestUtilities;

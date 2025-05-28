@@ -1,8 +1,7 @@
-// Bot.Core.Services/ConversationStateService.cs
-
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using StackExchange.Redis;
+using Bot.Core.Models;
 using Bot.Shared.Enums;
 
 namespace Bot.Core.Services;
@@ -17,21 +16,6 @@ public interface IConversationStateService
     Task<ConversationState> GetStateAsync(Guid sessionId);
 }
 
-public class ConversationSession
-{
-    public Guid SessionId { get; set; }
-    public Guid UserId { get; set; }
-    public string PhoneNumber { get; set; } = null!;
-    public ConversationState State { get; set; } = ConversationState.None;
-    public string? LastMessage { get; set; }
-    public DateTime LastUpdatedUtc { get; set; }
-}
-
-public class ConversationStateOptions
-{
-    public string RedisKeyPrefix { get; set; } = "session:";
-    public TimeSpan SessionTtl { get; set; } = TimeSpan.FromHours(24);
-}
 
 public class ConversationStateService(
     IConnectionMultiplexer redis,
@@ -62,7 +46,7 @@ public class ConversationStateService(
             new(nameof(ConversationSession.SessionId), newId.ToString()),
             new(nameof(ConversationSession.UserId), Guid.Empty.ToString()),
             new(nameof(ConversationSession.PhoneNumber), phoneNumber),
-            new(nameof(ConversationSession.State), ConversationState.None.ToString()),
+            new(nameof(ConversationSession.State), nameof(ConversationState.None)),
             new(nameof(ConversationSession.LastUpdatedUtc), now.ToString("o"))
         };
 
@@ -104,8 +88,8 @@ public class ConversationStateService(
     {
         var key = SessionKey(sessionId);
         var tran = _redis.CreateTransaction();
-        tran.HashSetAsync(key, nameof(ConversationSession.UserId), userId.ToString());
-        tran.StringSetAsync(UserIndexKey(userId), sessionId.ToString(), _opts.SessionTtl);
+        await tran.HashSetAsync(key, nameof(ConversationSession.UserId), userId.ToString());
+        await tran.StringSetAsync(UserIndexKey(userId), sessionId.ToString(), _opts.SessionTtl);
         await tran.ExecuteAsync();
         await TouchAsync(sessionId);
     }
