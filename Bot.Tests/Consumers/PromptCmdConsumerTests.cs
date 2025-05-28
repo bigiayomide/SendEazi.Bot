@@ -1,4 +1,5 @@
 using Bot.Core.Services;
+using Bot.Core.Models;
 using Bot.Core.StateMachine.Consumers.UX;
 using Bot.Shared.DTOs;
 using MassTransit;

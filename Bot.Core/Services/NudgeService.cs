@@ -1,5 +1,5 @@
 using Bot.Infrastructure.Data;
-using Bot.Shared;
+using Bot.Shared.Enums;
 using Bot.Shared.Models;
 
 namespace Bot.Core.Services;

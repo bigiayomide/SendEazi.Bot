@@ -1,15 +1,17 @@
 using Bot.Core.Services;
+using Bot.Core.Models;
+using Bot.Shared.Enums;
 
 namespace Bot.Tests.TestUtilities;
 
 public class FakeConversationStateService : IConversationStateService
 {
-    public Task<string> GetStateAsync(Guid sessionId)
+    public Task<ConversationState> GetStateAsync(Guid sessionId)
     {
-        return Task.FromResult("Ready");
+        return Task.FromResult(ConversationState.Ready);
     }
 
-    public Task SetStateAsync(Guid sessionId, string state)
+    public Task SetStateAsync(Guid sessionId, ConversationState state)
     {
         Console.WriteLine($"[Fake] Set session {sessionId} to {state}");
         return Task.CompletedTask;
@@ -27,7 +29,7 @@ public class FakeConversationStateService : IConversationStateService
         {
             PhoneNumber = phone,
             SessionId = Guid.NewGuid(),
-            State = "None",
+            State = ConversationState.None,
             UserId = Guid.NewGuid(),
             LastUpdatedUtc = DateTime.UtcNow
         });
@@ -39,7 +41,7 @@ public class FakeConversationStateService : IConversationStateService
         {
             PhoneNumber = "+2340000000000",
             SessionId = Guid.NewGuid(),
-            State = "None",
+            State = ConversationState.None,
             UserId = userId,
             LastUpdatedUtc = DateTime.UtcNow
         });
